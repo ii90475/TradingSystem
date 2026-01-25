@@ -15,7 +15,8 @@ from tradingsystem.core.database import (
 )
 from tradingsystem.core.rateservice import rateservice_client
 from tradingsystem.services.health import health_state
-from tradingsystem.api import charts_router, indicators_router
+from tradingsystem.services import strategy_service
+from tradingsystem.api import charts_router, indicators_router, strategies_router, signals_router
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -51,6 +52,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning(f"RateService not available: {rs_health.get('error')}")
 
+    # Initialize strategies
+    strategy_count = strategy_service.initialize_strategies()
+    logger.info(f"Initialized {strategy_count} strategies")
+
     yield
 
     # Shutdown
@@ -62,13 +67,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
 # Register API routers
 app.include_router(charts_router)
 app.include_router(indicators_router)
+app.include_router(strategies_router)
+app.include_router(signals_router)
 
 
 @app.get("/health")
@@ -126,12 +133,14 @@ async def root() -> dict:
     """Root endpoint with API info."""
     return {
         "name": settings.app_name,
-        "version": "0.2.0",
+        "version": "0.3.0",
         "description": "Automated trading system",
         "endpoints": {
             "health": "/health",
             "charts": "/charts",
             "indicators": "/indicators",
+            "strategies": "/strategies",
+            "signals": "/signals",
             "docs": "/docs",
         },
     }
