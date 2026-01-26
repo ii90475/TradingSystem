@@ -39,6 +39,22 @@ class Position(BaseModel):
     pnl_percent: Decimal | None = None
 
 
+class PositionCreate(BaseModel):
+    """Request model for opening a position."""
+
+    instrument: str
+    side: PositionSide
+    quantity: Decimal
+    entry_price: Decimal
+    strategy_id: str | None = None
+
+
+class PositionClose(BaseModel):
+    """Request model for closing a position."""
+
+    exit_price: Decimal
+
+
 class PositionSummary(BaseModel):
     """Portfolio position summary."""
 

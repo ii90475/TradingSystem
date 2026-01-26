@@ -32,6 +32,13 @@ class OrderStatus(str, Enum):
     REJECTED = "REJECTED"
 
 
+class TradingMode(str, Enum):
+    """Trading mode."""
+
+    PAPER = "PAPER"
+    LIVE = "LIVE"
+
+
 class OrderCreate(BaseModel):
     """Request model for creating an order."""
 
@@ -41,6 +48,7 @@ class OrderCreate(BaseModel):
     quantity: Decimal
     price: Decimal | None = None  # Required for LIMIT/STOP orders
     strategy_id: str | None = None
+    mode: TradingMode = TradingMode.PAPER
 
 
 class Order(BaseModel):
