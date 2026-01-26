@@ -8,6 +8,7 @@ from tradingsystem.api.backtest import router as backtest_router
 from tradingsystem.api.orders import router as orders_router
 from tradingsystem.api.positions import router as positions_router
 from tradingsystem.api.live_trading import router as live_trading_router
+from tradingsystem.api.dashboard import router as dashboard_router
 
 __all__ = [
     "charts_router",
@@ -18,4 +19,5 @@ __all__ = [
     "orders_router",
     "positions_router",
     "live_trading_router",
+    "dashboard_router",
 ]
