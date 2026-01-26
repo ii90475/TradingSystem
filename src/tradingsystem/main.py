@@ -24,6 +24,7 @@ from tradingsystem.api import (
     backtest_router,
     orders_router,
     positions_router,
+    live_trading_router,
 )
 
 logging.basicConfig(
@@ -75,7 +76,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.5.0",
+    version="0.6.0",
     lifespan=lifespan,
 )
 
@@ -87,6 +88,7 @@ app.include_router(signals_router)
 app.include_router(backtest_router)
 app.include_router(orders_router)
 app.include_router(positions_router)
+app.include_router(live_trading_router)
 
 
 @app.get("/health")
@@ -144,8 +146,9 @@ async def root() -> dict:
     """Root endpoint with API info."""
     return {
         "name": settings.app_name,
-        "version": "0.5.0",
+        "version": "0.6.0",
         "description": "Automated trading system",
+        "mode": "LIVE" if settings.live_trading_enabled else "PAPER",
         "endpoints": {
             "health": "/health",
             "charts": "/charts",
@@ -155,6 +158,7 @@ async def root() -> dict:
             "backtest": "/backtest",
             "orders": "/orders",
             "positions": "/positions",
+            "live": "/live",
             "docs": "/docs",
         },
     }

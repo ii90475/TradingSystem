@@ -8,7 +8,10 @@ from tradingsystem.services import backtest_service
 from tradingsystem.services import order_service
 from tradingsystem.services import position_service
 from tradingsystem.services import paper_trading_service
+from tradingsystem.services import live_trading_service
+from tradingsystem.services import reconciliation_service
 from tradingsystem.services.health import health_state
+from tradingsystem.services.risk_manager import risk_manager
 
 __all__ = [
     "chart_service",
@@ -19,5 +22,8 @@ __all__ = [
     "order_service",
     "position_service",
     "paper_trading_service",
+    "live_trading_service",
+    "reconciliation_service",
     "health_state",
+    "risk_manager",
 ]
