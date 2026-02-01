@@ -2,6 +2,7 @@
 
 ## 1. Start the Services
 
+### Manual Start
 ```bash
 # Terminal 1: Start RateService (forex data)
 cd ~/Code/RateService
@@ -12,6 +13,39 @@ uvicorn rateservice.main:app --port 8000
 cd ~/Code/TradingSystem
 source ~/.pyenv/versions/tradingsystem/bin/activate
 uvicorn tradingsystem.main:app --port 8001
+```
+
+### Auto-Start on Boot (macOS)
+
+Both services can be configured to start automatically on boot using launchd.
+
+**Install the launch agents:**
+```bash
+# Copy plist files to LaunchAgents (if not already installed)
+cp deploy/com.rateservice.app.plist ~/Library/LaunchAgents/
+cp deploy/com.tradingsystem.app.plist ~/Library/LaunchAgents/
+
+# Load the services
+launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
+launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+```
+
+**Manage services:**
+```bash
+# Check status
+launchctl list | grep -E "(rateservice|tradingsystem)"
+
+# Stop services
+launchctl unload ~/Library/LaunchAgents/com.rateservice.app.plist
+launchctl unload ~/Library/LaunchAgents/com.tradingsystem.app.plist
+
+# Start services
+launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
+launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+
+# View logs
+tail -f ~/Library/Logs/rateservice.log
+tail -f ~/Library/Logs/tradingsystem.log
 ```
 
 ## 2. Paper Trading (Safe Testing)

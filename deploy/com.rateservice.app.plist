@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.rateservice.app</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jamesconsole/.pyenv/versions/rateservice/bin/python</string>
+        <string>-m</string>
+        <string>uvicorn</string>
+        <string>rateservice.main:app</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+        <string>--port</string>
+        <string>8000</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/jamesconsole/Code/RateService</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/jamesconsole/.pyenv/versions/rateservice/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/jamesconsole/Code/RateService/src</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jamesconsole/Library/Logs/rateservice.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/jamesconsole/Library/Logs/rateservice.error.log</string>
+</dict>
+</plist>
