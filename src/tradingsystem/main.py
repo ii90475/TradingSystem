@@ -16,6 +16,10 @@ from tradingsystem.core.database import (
 from tradingsystem.core.rateservice import rateservice_client
 from tradingsystem.services.health import health_state
 from tradingsystem.services import strategy_service
+from tradingsystem.services.alert_service import alert_service
+from tradingsystem.services.log_monitor import setup_log_monitoring
+from tradingsystem.services.monitoring_service import monitoring_service
+from tradingsystem.services.twilio_handler import twilio_handler
 from tradingsystem.api import (
     charts_router,
     indicators_router,
@@ -40,6 +44,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup and shutdown."""
     # Startup
     logger.info(f"Starting {settings.app_name}...")
+
+    # Set up log monitoring
+    setup_log_monitoring()
+
+    # Register Twilio SMS handler with alert service
+    if twilio_handler.enabled:
+        alert_service.register_handler(twilio_handler)
+        logger.info("Twilio SMS handler registered")
 
     await init_pool()
     logger.info("Database pool initialized")
@@ -66,10 +78,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     strategy_count = strategy_service.initialize_strategies()
     logger.info(f"Initialized {strategy_count} strategies")
 
+    # Start monitoring service
+    await monitoring_service.start()
+
     yield
 
     # Shutdown
     logger.info("Shutting down...")
+    await monitoring_service.stop()
     await close_pool()
     logger.info("Shutdown complete")
 

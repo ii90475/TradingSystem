@@ -43,5 +43,21 @@ class Settings(BaseSettings):
         "USD_JPY",
     ]
 
+    # Monitoring
+    monitoring_enabled: bool = True
+    monitoring_interval_minutes: int = 1
+
+    # Twilio SMS
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+    twilio_to_number: str = ""
+    twilio_alert_on_warning: bool = False
+
+    # Log monitoring
+    log_monitor_window_seconds: int = 300
+    log_monitor_error_threshold: int = 10
+    log_monitor_warning_threshold: int = 50
+
 
 settings = Settings()

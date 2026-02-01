@@ -14,6 +14,9 @@ from tradingsystem.services import performance_service
 from tradingsystem.services.health import health_state
 from tradingsystem.services.risk_manager import risk_manager
 from tradingsystem.services.alert_service import alert_service
+from tradingsystem.services.log_monitor import setup_log_monitoring, get_log_monitor
+from tradingsystem.services.monitoring_service import monitoring_service
+from tradingsystem.services.twilio_handler import twilio_handler
 
 __all__ = [
     "chart_service",
@@ -30,4 +33,8 @@ __all__ = [
     "health_state",
     "risk_manager",
     "alert_service",
+    "setup_log_monitoring",
+    "get_log_monitor",
+    "monitoring_service",
+    "twilio_handler",
 ]

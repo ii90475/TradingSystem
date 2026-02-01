@@ -5,6 +5,8 @@ from fastapi.responses import HTMLResponse
 
 from tradingsystem.services import performance_service
 from tradingsystem.services.alert_service import alert_service, AlertLevel, AlertType
+from tradingsystem.services.log_monitor import get_log_monitor
+from tradingsystem.services.monitoring_service import monitoring_service
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -130,6 +132,36 @@ async def acknowledge_all_alerts() -> dict:
     """Acknowledge all alerts."""
     count = alert_service.acknowledge_all()
     return {"acknowledged_count": count}
+
+
+@router.get("/monitoring")
+async def get_monitoring_status() -> dict:
+    """Get monitoring service status and log statistics."""
+    status = monitoring_service.get_status()
+
+    # Add log monitoring stats
+    log_monitor = get_log_monitor()
+    if log_monitor:
+        log_stats = log_monitor.get_stats()
+        status["log_monitor"] = {
+            "error_count": log_stats.error_count,
+            "warning_count": log_stats.warning_count,
+            "window_seconds": log_stats.window_seconds,
+            "error_threshold": log_stats.error_threshold,
+            "warning_threshold": log_stats.warning_threshold,
+            "error_rate_exceeded": log_stats.error_rate_exceeded,
+            "warning_rate_exceeded": log_stats.warning_rate_exceeded,
+        }
+    else:
+        status["log_monitor"] = None
+
+    return status
+
+
+@router.post("/monitoring/check")
+async def run_monitoring_check() -> dict:
+    """Trigger an immediate monitoring check."""
+    return await monitoring_service.run_check_now()
 
 
 @router.get("/", response_class=HTMLResponse)

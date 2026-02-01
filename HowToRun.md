@@ -89,7 +89,57 @@ curl -X POST http://localhost:8001/live/trade \
 curl -X POST http://localhost:8001/live/emergency-close
 ```
 
-## 6. Available Strategies
+## 6. System Monitoring
+
+The system includes comprehensive internal monitoring with health checks and SMS alerts.
+
+**Check monitoring status:**
+```bash
+curl http://localhost:8001/dashboard/monitoring
+```
+
+**Trigger immediate health check:**
+```bash
+curl -X POST http://localhost:8001/dashboard/monitoring/check
+```
+
+### Components Monitored
+
+| Component | Description |
+|-----------|-------------|
+| Docker | `rateservice-db` container status |
+| Database | PostgreSQL/TimescaleDB connectivity |
+| RateService | Rate data service health |
+| OANDA API | Live trading API (when enabled) |
+| App | Scheduler status, active strategies |
+
+### SMS Alerts (Optional)
+
+Configure Twilio in `.env` to receive SMS alerts for critical failures:
+
+```bash
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_FROM_NUMBER=+1234567890
+TWILIO_TO_NUMBER=+1234567890
+```
+
+Alerts are sent on:
+- **Component failure** - First occurrence only (no spam)
+- **Component recovery** - When service comes back online
+- **Log rate exceeded** - Too many errors/warnings in window
+
+### Configuration
+
+```bash
+MONITORING_ENABLED=true           # Enable/disable monitoring
+MONITORING_INTERVAL_MINUTES=1     # Check frequency
+LOG_MONITOR_ERROR_THRESHOLD=10    # Errors before alert
+LOG_MONITOR_WARNING_THRESHOLD=50  # Warnings before alert
+LOG_MONITOR_WINDOW_SECONDS=300    # Sliding window (5 min)
+```
+
+## 7. Available Strategies
 
 | Strategy | Description |
 |----------|-------------|
@@ -101,7 +151,7 @@ List strategies:
 curl http://localhost:8001/strategies
 ```
 
-## 7. Key API Docs
+## 8. Key API Docs
 
 Interactive docs: **http://localhost:8001/docs**
 
@@ -109,5 +159,5 @@ Interactive docs: **http://localhost:8001/docs**
 
 1. **Backtest** strategies on historical data
 2. **Paper trade** for real-time validation (no real money)
-3. **Monitor** via dashboard for performance
+3. **Monitor** via dashboard and `/dashboard/monitoring` endpoint
 4. **Live trade** only after consistent paper results
