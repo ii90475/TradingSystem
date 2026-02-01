@@ -189,6 +189,44 @@ curl http://localhost:8001/strategies
 
 Interactive docs: **http://localhost:8001/docs**
 
+## 9. OANDA Data Notes
+
+### Daily Candle Boundary
+
+OANDA uses **5 PM New York time (EST/EDT)** as the daily candle boundary, not UTC midnight.
+
+| Timezone | Daily Candle Start |
+|----------|-------------------|
+| New York (EST) | 5:00 PM |
+| UTC | 22:00 (winter) / 21:00 (summer) |
+
+When aggregating M1 candles to daily, use the OANDA boundary:
+```sql
+-- Correct: OANDA trading day (5 PM EST = 22:00 UTC)
+SELECT * FROM fx_candles
+WHERE time >= '2026-01-29 22:00:00+00'
+  AND time < '2026-01-30 22:00:00+00';
+
+-- Incorrect: UTC midnight boundary
+SELECT * FROM fx_candles
+WHERE time >= '2026-01-30 00:00:00+00'
+  AND time < '2026-01-31 00:00:00+00';
+```
+
+### Data Backfill
+
+If data gaps occur, backfill via the RateService API:
+```bash
+curl -X POST "http://localhost:8000/rates/GBP_USD/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"from_time": "2026-01-29T22:00:00Z", "to_time": "2026-01-31T03:00:00Z"}'
+```
+
+Check data coverage:
+```bash
+curl http://localhost:8000/rates/GBP_USD/coverage
+```
+
 ## Recommended Workflow
 
 1. **Backtest** strategies on historical data
