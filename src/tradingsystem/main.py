@@ -2,9 +2,12 @@
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from tradingsystem.core.config import settings
 from tradingsystem.core.database import (
@@ -97,7 +100,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register API routers
+# Register API routers (original paths for backward compatibility)
 app.include_router(charts_router)
 app.include_router(indicators_router)
 app.include_router(strategies_router)
@@ -107,6 +110,22 @@ app.include_router(orders_router)
 app.include_router(positions_router)
 app.include_router(live_trading_router)
 app.include_router(dashboard_router)
+
+# Also register with /api prefix for frontend
+app.include_router(charts_router, prefix="/api")
+app.include_router(indicators_router, prefix="/api")
+app.include_router(strategies_router, prefix="/api")
+app.include_router(signals_router, prefix="/api")
+app.include_router(backtest_router, prefix="/api")
+app.include_router(orders_router, prefix="/api")
+app.include_router(positions_router, prefix="/api")
+app.include_router(live_trading_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
+
+# Mount static files for frontend
+FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 @app.get("/health")
@@ -159,25 +178,38 @@ async def health_check_simple() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/ui")
+async def serve_dashboard():
+    """Serve the trading dashboard UI."""
+    index_path = FRONTEND_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"error": "Frontend not found. Run from project root directory."}
+
+
 @app.get("/")
 async def root() -> dict:
     """Root endpoint with API info."""
     return {
         "name": settings.app_name,
-        "version": "0.7.0",
+        "version": "0.30.0",
         "description": "Automated trading system",
         "mode": "LIVE" if settings.live_trading_enabled else "PAPER",
+        "ui": "/ui",
         "endpoints": {
             "health": "/health",
-            "dashboard": "/dashboard",
-            "charts": "/charts",
-            "indicators": "/indicators",
-            "strategies": "/strategies",
-            "signals": "/signals",
-            "backtest": "/backtest",
-            "orders": "/orders",
-            "positions": "/positions",
-            "live": "/live",
+            "ui": "/ui",
+            "api": {
+                "dashboard": "/api/dashboard",
+                "charts": "/api/charts",
+                "indicators": "/api/indicators",
+                "strategies": "/api/strategies",
+                "signals": "/api/signals",
+                "backtest": "/api/backtest",
+                "orders": "/api/orders",
+                "positions": "/api/positions",
+                "live": "/api/live",
+            },
             "docs": "/docs",
         },
     }

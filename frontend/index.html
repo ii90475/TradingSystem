@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingSystem Dashboard</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">TradingSystem</div>
+        <div class="connection-status">
+            <span id="status-dot" class="status-dot"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
+        <div class="account-info">
+            <div class="account-item">
+                <span class="account-label">Balance</span>
+                <span id="account-balance" class="account-value loading">--</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Unrealized P&L</span>
+                <span id="account-pnl" class="account-value loading">--</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Daily P&L</span>
+                <span id="daily-pnl" class="account-value loading">--</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Margin Used</span>
+                <span id="margin-used" class="account-value loading">--</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Instrument Tabs -->
+        <div class="instrument-tabs">
+            <div class="tab active" data-instrument="EUR_USD">EUR/USD</div>
+            <div class="tab" data-instrument="GBP_USD">GBP/USD</div>
+            <div class="tab" data-instrument="USD_JPY">USD/JPY</div>
+            <div class="tab" data-instrument="AUD_USD">AUD/USD</div>
+            <div class="tab" data-instrument="USD_CAD">USD/CAD</div>
+        </div>
+
+        <!-- Chart Area -->
+        <div class="chart-area">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <span id="chart-title" class="chart-title">EUR/USD</span>
+                        <span id="chart-price" class="chart-price">--</span>
+                        <span id="chart-change" class="chart-change">--</span>
+                    </div>
+                    <div class="timeframe-buttons">
+                        <button class="tf-btn" data-period="M1">1m</button>
+                        <button class="tf-btn" data-period="M5">5m</button>
+                        <button class="tf-btn" data-period="M15">15m</button>
+                        <button class="tf-btn active" data-period="H1">1H</button>
+                        <button class="tf-btn" data-period="H4">4H</button>
+                        <button class="tf-btn" data-period="D">1D</button>
+                    </div>
+                </div>
+                <div id="chart"></div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Order Form -->
+            <div class="panel">
+                <div class="panel-header">New Order</div>
+                <div class="panel-content">
+                    <form id="order-form" class="order-form">
+                        <div class="order-type-toggle">
+                            <button type="button" class="order-type-btn buy active" data-side="BUY">Buy</button>
+                            <button type="button" class="order-type-btn sell" data-side="SELL">Sell</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity (units)</label>
+                            <input type="number" id="order-quantity" class="form-input" value="1000" step="100" min="1">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Stop Loss</label>
+                                <input type="text" id="order-stop-loss" class="form-input" placeholder="Optional">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Take Profit</label>
+                                <input type="text" id="order-take-profit" class="form-input" placeholder="Optional">
+                            </div>
+                        </div>
+                        <button type="submit" id="submit-order-btn" class="submit-btn">Place BUY Order</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Recent Signals -->
+            <div class="panel signals-panel">
+                <div class="panel-header">
+                    <span>Signals</span>
+                    <span style="font-size: 11px; color: var(--accent-green);">Live</span>
+                </div>
+                <div class="panel-content">
+                    <div id="signals-container">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Open Positions -->
+            <div class="panel positions-panel">
+                <div class="panel-header">
+                    <span>Positions</span>
+                    <span id="positions-count" style="font-size: 11px;">--</span>
+                </div>
+                <div class="panel-content">
+                    <div id="positions-container">
+                        <div class="loading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/chart.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
