@@ -46,7 +46,7 @@ class ChartManager {
             },
         });
 
-        // Add candlestick series
+        // Add candlestick series with forex price format (4 decimal places)
         this.candlestickSeries = this.chart.addCandlestickSeries({
             upColor: '#3fb950',
             downColor: '#f85149',
@@ -54,6 +54,11 @@ class ChartManager {
             borderUpColor: '#3fb950',
             wickDownColor: '#f85149',
             wickUpColor: '#3fb950',
+            priceFormat: {
+                type: 'price',
+                precision: 4,
+                minMove: 0.0001,
+            },
         });
 
         // Add volume series
@@ -69,12 +74,17 @@ class ChartManager {
             },
         });
 
-        // Add SMA series
+        // Add SMA series with forex price format
         this.smaSeries = this.chart.addLineSeries({
             color: '#58a6ff',
             lineWidth: 2,
             priceLineVisible: false,
             lastValueVisible: false,
+            priceFormat: {
+                type: 'price',
+                precision: 4,
+                minMove: 0.0001,
+            },
         });
 
         // Handle resize
@@ -103,11 +113,21 @@ class ChartManager {
 
     updatePriceDisplay(data) {
         const priceEl = document.getElementById('chart-price');
+        const openEl = document.getElementById('chart-open');
+        const highEl = document.getElementById('chart-high');
+        const lowEl = document.getElementById('chart-low');
+        const closeEl = document.getElementById('chart-close');
         const changeEl = document.getElementById('chart-change');
 
         if (priceEl && data.close) {
             priceEl.textContent = data.close.toFixed(5);
         }
+
+        // Update OHLC values
+        if (openEl && data.open) openEl.textContent = data.open.toFixed(5);
+        if (highEl && data.high) highEl.textContent = data.high.toFixed(5);
+        if (lowEl && data.low) lowEl.textContent = data.low.toFixed(5);
+        if (closeEl && data.close) closeEl.textContent = data.close.toFixed(5);
 
         if (changeEl && data.open && data.close) {
             const change = data.close - data.open;
@@ -118,14 +138,18 @@ class ChartManager {
         }
     }
 
-    async loadData(instrument, period = 'H1') {
+    async loadData(instrument, period = 'M5') {
         this.currentInstrument = instrument;
         this.currentPeriod = period;
 
         try {
             // Try to get chart data from API
+            console.log(`Loading chart for ${instrument} ${period}`);
             const chartData = await api.getChartByInstrument(instrument, period);
+            console.log('Chart data:', chartData);
+
             const candles = await api.getChartCandles(chartData.id, null, null, 200);
+            console.log(`Loaded ${candles.length} candles, latest:`, candles[0]);
 
             this.setData(candles);
         } catch (error) {

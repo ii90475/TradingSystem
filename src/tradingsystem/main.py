@@ -222,7 +222,7 @@ def main() -> None:
     uvicorn.run(
         "tradingsystem.main:app",
         host="0.0.0.0",
-        port=8001,  # Different port from RateService (8000)
+        port=8002,  # Different port from RateService (8000)
         reload=settings.debug,
     )
 

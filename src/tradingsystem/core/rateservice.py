@@ -71,6 +71,25 @@ class RateServiceClient:
             response.raise_for_status()
             return [CurrentRate(**rate) for rate in response.json()]
 
+    # Map TradingSystem periods to RateService periods
+    PERIOD_MAP = {
+        "M1": "M1",      # Special case - uses /history endpoint
+        "M5": "5m",
+        "M15": "15m",
+        "M30": "30m",
+        "H1": "1h",
+        "H4": "4h",
+        "D": "1d",
+        "D1": "1d",
+        # Also accept lowercase formats
+        "5m": "5m",
+        "15m": "15m",
+        "30m": "30m",
+        "1h": "1h",
+        "4h": "4h",
+        "1d": "1d",
+    }
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
@@ -90,7 +109,7 @@ class RateServiceClient:
 
         Args:
             pair: Currency pair (e.g., "EUR_USD")
-            period: Candle period (M1, 5m, 15m, 30m, 1h, 4h, 1d)
+            period: Candle period (M1, M5, M15, M30, H1, H4, D or lowercase equivalents)
             start: Start time for history
             end: End time for history
             limit: Maximum number of candles
@@ -98,6 +117,9 @@ class RateServiceClient:
         Returns:
             List of Candle objects
         """
+        # Translate period to RateService format
+        rs_period = self.PERIOD_MAP.get(period, period)
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             params: dict = {"limit": limit}
             if start:
@@ -109,7 +131,7 @@ class RateServiceClient:
             if period == "M1":
                 url = f"{self.base_url}/rates/{pair}/history"
             else:
-                url = f"{self.base_url}/rates/{pair}/candles/{period}"
+                url = f"{self.base_url}/rates/{pair}/candles/{rs_period}"
 
             response = await client.get(url, params=params)
             response.raise_for_status()

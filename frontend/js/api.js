@@ -101,7 +101,7 @@ class TradingAPI {
     }
 
     async getChartByInstrument(instrument, period) {
-        return this.request(`/charts/instrument/${instrument}?period=${period}`);
+        return this.request(`/charts/by-instrument/${instrument}?period=${period}`);
     }
 
     // ==================== Signals ====================
@@ -162,7 +162,10 @@ class TradingAPI {
     // ==================== Health ====================
 
     async getHealth() {
-        return this.request('/health');
+        // Health endpoint is at root, not under /api
+        const response = await fetch('/health');
+        if (!response.ok) throw new Error('Health check failed');
+        return response.json();
     }
 }
 

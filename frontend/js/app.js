@@ -7,7 +7,7 @@ class TradingApp {
     constructor() {
         this.chart = null;
         this.currentInstrument = 'EUR_USD';
-        this.currentPeriod = 'H1';
+        this.currentPeriod = 'M5';
         this.orderSide = 'BUY';
         this.positions = [];
         this.signals = [];

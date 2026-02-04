@@ -53,13 +53,19 @@
                     <div>
                         <span id="chart-title" class="chart-title">EUR/USD</span>
                         <span id="chart-price" class="chart-price">--</span>
+                        <span class="ohlc-values">
+                            <span class="ohlc-item">O: <span id="chart-open">--</span></span>
+                            <span class="ohlc-item">H: <span id="chart-high">--</span></span>
+                            <span class="ohlc-item">L: <span id="chart-low">--</span></span>
+                            <span class="ohlc-item">C: <span id="chart-close">--</span></span>
+                        </span>
                         <span id="chart-change" class="chart-change">--</span>
                     </div>
                     <div class="timeframe-buttons">
                         <button class="tf-btn" data-period="M1">1m</button>
-                        <button class="tf-btn" data-period="M5">5m</button>
+                        <button class="tf-btn active" data-period="M5">5m</button>
                         <button class="tf-btn" data-period="M15">15m</button>
-                        <button class="tf-btn active" data-period="H1">1H</button>
+                        <button class="tf-btn" data-period="H1">1H</button>
                         <button class="tf-btn" data-period="H4">4H</button>
                         <button class="tf-btn" data-period="D">1D</button>
                     </div>

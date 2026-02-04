@@ -30,14 +30,14 @@ body {
 .header {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
-    padding: 12px 24px;
+    padding: 4px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .logo {
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--accent-blue);
 }
@@ -75,13 +75,13 @@ body {
 
 .account-label {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 9px;
     text-transform: uppercase;
 }
 
 .account-value {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 12px;
 }
 
 .account-value.positive { color: var(--accent-green); }
@@ -93,7 +93,7 @@ body {
     display: grid;
     grid-template-columns: 1fr 320px;
     grid-template-rows: auto 1fr;
-    height: calc(100vh - 57px);
+    height: calc(100vh - 32px);
 }
 
 /* Instrument Tabs */
@@ -168,6 +168,22 @@ body {
 
 .chart-change.positive { color: var(--accent-green); }
 .chart-change.negative { color: var(--accent-red); }
+
+.ohlc-values {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-left: 16px;
+    margin-right: 8px;
+}
+
+.ohlc-item {
+    margin-right: 12px;
+}
+
+.ohlc-item span {
+    color: var(--text-primary);
+    font-weight: 500;
+}
 
 .timeframe-buttons {
     display: flex;
