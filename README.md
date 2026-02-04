@@ -1,5 +1,8 @@
 # TradingSystem
 
+[![CI](https://github.com/ii90475/TradingSystem/actions/workflows/ci.yml/badge.svg)](https://github.com/ii90475/TradingSystem/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](https://github.com/ii90475/TradingSystem)
+
 Automated trading system with technical analysis, backtesting, and strategy execution.
 
 ## Features
@@ -54,6 +57,30 @@ TradingSystem consumes rate data from RateService and provides:
 pip install -e ".[dev]"
 pytest
 ```
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to ensure code quality before commits:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Hooks run automatically on `git commit`:
+- Trailing whitespace removal
+- YAML/JSON validation
+- Ruff linting and formatting
+- Fast unit tests
+
+### CI/CD
+
+GitHub Actions runs automatically on push/PR to master:
+- **Test Suite**: Full pytest with coverage (must maintain 85%+)
+- **Code Quality**: Ruff linting and formatting checks
+- **Security Scan**: Bandit and safety dependency checks
+
+View CI status: [Actions](https://github.com/ii90475/TradingSystem/actions)
 
 ## Testing
 
