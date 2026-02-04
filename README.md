@@ -162,6 +162,8 @@ safety check
 
 The project includes comprehensive test coverage (95%) with 782 tests covering all critical trading functionality.
 
+> **Coverage Milestone (v0.20.0):** All testable code paths are now covered. Remaining gaps are in infrastructure code requiring live database connections or application entrypoint code.
+
 ```bash
 # Run all tests
 pytest tests/ -v
@@ -230,4 +232,16 @@ pytest tests/api/            # API endpoint tests
 |-----------|----------|-------|-------------|
 | RateService Client | 100% | 10 | Rate data fetching |
 | OANDA Client | 100% | 36 | Trading API integration |
-| Database | 65% | - | Connection pool (requires DB) |
+| Database | 65% | - | Connection pool (requires live DB) |
+| Main Entrypoint | 65% | - | App startup (requires running server) |
+
+#### Coverage Notes
+
+The 95% coverage target represents complete testing of all business logic and API endpoints. The remaining 5% consists of:
+
+- **Database connection pool** - Requires live TimescaleDB instance
+- **Application entrypoint** - FastAPI server startup/shutdown lifecycle
+- **Monitoring background tasks** - Long-running asyncio loops
+- **Strategy registry file discovery** - Filesystem-dependent code paths
+
+These are infrastructure concerns that are validated through integration testing and production monitoring rather than unit tests.
