@@ -1,7 +1,7 @@
 # TradingSystem
 
 [![CI](https://github.com/ii90475/TradingSystem/actions/workflows/ci.yml/badge.svg)](https://github.com/ii90475/TradingSystem/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](https://github.com/ii90475/TradingSystem)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://github.com/ii90475/TradingSystem)
 
 Automated trading system with technical analysis, backtesting, and strategy execution.
 
@@ -160,7 +160,7 @@ safety check
 
 ## Testing
 
-The project includes comprehensive test coverage (92%) with 684 tests covering all critical trading functionality.
+The project includes comprehensive test coverage (95%) with 782 tests covering all critical trading functionality.
 
 ```bash
 # Run all tests
@@ -177,7 +177,7 @@ pytest tests/api/            # API endpoint tests
 
 ### Test Coverage Summary
 
-**Overall: 684 tests | 92% coverage**
+**Overall: 782 tests | 95% coverage**
 
 #### Core Services
 
@@ -207,7 +207,7 @@ pytest tests/api/            # API endpoint tests
 |--------|----------|-------|-------------|
 | Orders | 96% | 17 | Order CRUD, trade execution |
 | Positions | 97% | 18 | Position management, P&L |
-| Live Trading | 87% | 20 | OANDA trading, risk checks |
+| Live Trading | 100% | 27 | OANDA trading, risk checks |
 | Strategies | 100% | 19 | Strategy lifecycle, run-once |
 | Backtest | 100% | 16 | Backtest execution, history |
 | Dashboard | 100% | 19 | Portfolio, performance, alerts |
@@ -229,5 +229,5 @@ pytest tests/api/            # API endpoint tests
 | Component | Coverage | Tests | Description |
 |-----------|----------|-------|-------------|
 | RateService Client | 100% | 10 | Rate data fetching |
-| OANDA Client | 68% | 17 | Trading API integration |
+| OANDA Client | 100% | 36 | Trading API integration |
 | Database | 65% | - | Connection pool (requires DB) |
