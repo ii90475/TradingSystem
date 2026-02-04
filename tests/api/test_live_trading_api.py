@@ -177,6 +177,18 @@ class TestGetOpenTrades:
             assert response.status_code == 200
             assert response.json() == []
 
+    def test_get_open_trades_error(self, client):
+        """Should return 400 on OANDA error."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client:
+            mock_client.get_open_trades = AsyncMock(
+                side_effect=Exception("Failed to fetch trades")
+            )
+
+            response = client.get("/live/trades")
+
+            assert response.status_code == 400
+            assert "Failed to fetch trades" in response.json()["detail"]
+
 
 class TestExecuteLiveTrade:
     """Tests for POST /live/trade."""
@@ -275,6 +287,27 @@ class TestExecuteLiveTrade:
             assert response.status_code == 400
             assert "risk" in response.json()["detail"].lower()
 
+    def test_execute_trade_general_exception(self, client):
+        """Should return 500 on unexpected error."""
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+             patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
+            mock_settings.live_trading_enabled = True
+            mock_service.execute_live_trade = AsyncMock(
+                side_effect=Exception("Unexpected database error")
+            )
+
+            response = client.post(
+                "/live/trade",
+                json={
+                    "instrument": "EUR_USD",
+                    "side": "BUY",
+                    "quantity": "1000",
+                },
+            )
+
+            assert response.status_code == 500
+            assert "Trade execution failed" in response.json()["detail"]
+
 
 class TestCloseLiveTrade:
     """Tests for POST /live/trade/{position_id}/close."""
@@ -308,6 +341,36 @@ class TestCloseLiveTrade:
             data = response.json()
             assert data["pnl"] == "50.00"
 
+    def test_close_trade_live_trading_error(self, client):
+        """Should return 400 on LiveTradingError."""
+        from tradingsystem.services.live_trading_service import LiveTradingError
+
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+             patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
+            mock_settings.live_trading_enabled = True
+            mock_service.close_live_trade = AsyncMock(
+                side_effect=LiveTradingError("Position not found in OANDA")
+            )
+
+            response = client.post(f"/live/trade/{uuid4()}/close")
+
+            assert response.status_code == 400
+            assert "Position not found" in response.json()["detail"]
+
+    def test_close_trade_general_exception(self, client):
+        """Should return 500 on unexpected error."""
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+             patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
+            mock_settings.live_trading_enabled = True
+            mock_service.close_live_trade = AsyncMock(
+                side_effect=Exception("Network timeout")
+            )
+
+            response = client.post(f"/live/trade/{uuid4()}/close")
+
+            assert response.status_code == 500
+            assert "Close failed" in response.json()["detail"]
+
 
 class TestEmergencyCloseAll:
     """Tests for POST /live/emergency-close."""
@@ -335,6 +398,22 @@ class TestEmergencyCloseAll:
             assert response.status_code == 200
             data = response.json()
             assert data["closed_count"] == 1
+
+    def test_emergency_close_live_trading_error(self, client):
+        """Should return 400 on LiveTradingError."""
+        from tradingsystem.services.live_trading_service import LiveTradingError
+
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+             patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
+            mock_settings.live_trading_enabled = True
+            mock_service.emergency_close_all = AsyncMock(
+                side_effect=LiveTradingError("Failed to close all positions")
+            )
+
+            response = client.post("/live/emergency-close")
+
+            assert response.status_code == 400
+            assert "Failed to close all positions" in response.json()["detail"]
 
 
 class TestCheckTradeRisk:
@@ -450,6 +529,18 @@ class TestReconcilePositions:
             data = response.json()
             assert data["in_sync"] is True
 
+    def test_reconcile_positions_error(self, client):
+        """Should return 400 on reconciliation error."""
+        with patch("tradingsystem.api.live_trading.reconciliation_service") as mock_service:
+            mock_service.reconcile_positions = AsyncMock(
+                side_effect=Exception("OANDA API unavailable")
+            )
+
+            response = client.get("/live/reconciliation")
+
+            assert response.status_code == 400
+            assert "OANDA API unavailable" in response.json()["detail"]
+
 
 class TestSyncPositions:
     """Tests for POST /live/reconciliation/sync."""
@@ -468,6 +559,18 @@ class TestSyncPositions:
             response = client.post("/live/reconciliation/sync")
 
             assert response.status_code == 200
+
+    def test_sync_positions_error(self, client):
+        """Should return 400 on sync error."""
+        with patch("tradingsystem.api.live_trading.reconciliation_service") as mock_service:
+            mock_service.sync_from_oanda = AsyncMock(
+                side_effect=Exception("Failed to sync with OANDA")
+            )
+
+            response = client.post("/live/reconciliation/sync")
+
+            assert response.status_code == 400
+            assert "Failed to sync" in response.json()["detail"]
 
 
 class TestGetOandaPositions:

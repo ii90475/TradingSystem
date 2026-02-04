@@ -230,6 +230,131 @@ class TestCreateMarketOrder:
             with pytest.raises(RuntimeError, match="Order rejected"):
                 await client.create_market_order("EUR_USD", Decimal("1000000"))
 
+    @pytest.mark.asyncio
+    async def test_create_market_order_cancelled(self, client):
+        """Should raise RuntimeError when order cancelled."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "orderCancelTransaction": {"reason": "TIME_IN_FORCE_EXPIRED"}
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            with pytest.raises(RuntimeError, match="Order cancelled"):
+                await client.create_market_order("EUR_USD", Decimal("1000"))
+
+    @pytest.mark.asyncio
+    async def test_create_market_order_unexpected_response(self, client):
+        """Should raise RuntimeError on unexpected response."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"unexpectedField": "value"}
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            with pytest.raises(RuntimeError, match="Unexpected order response"):
+                await client.create_market_order("EUR_USD", Decimal("1000"))
+
+
+class TestCreateLimitOrder:
+    """Tests for OandaTradingClient.create_limit_order()."""
+
+    @pytest.mark.asyncio
+    async def test_create_limit_order_success(self, client):
+        """Should return OandaOrderResponse on successful creation."""
+        order_response = {
+            "orderCreateTransaction": {
+                "id": "order-789",
+                "instrument": "EUR_USD",
+                "units": "1000",
+                "price": "1.0800",
+                "time": "2024-01-15T12:00:00.000000000Z",
+            }
+        }
+
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = order_response
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            result = await client.create_limit_order("EUR_USD", Decimal("1000"), Decimal("1.0800"))
+
+            assert isinstance(result, OandaOrderResponse)
+            assert result.order_id == "order-789"
+            assert result.state == "PENDING"
+
+    @pytest.mark.asyncio
+    async def test_create_limit_order_live_disabled(self, client_live_disabled):
+        """Should raise RuntimeError when live trading disabled."""
+        with pytest.raises(RuntimeError, match="Live trading is disabled"):
+            await client_live_disabled.create_limit_order("EUR_USD", Decimal("1000"), Decimal("1.0800"))
+
+    @pytest.mark.asyncio
+    async def test_create_limit_order_with_stops(self, client):
+        """Should include stop loss and take profit in order."""
+        order_response = {
+            "orderCreateTransaction": {
+                "id": "order-789",
+                "instrument": "EUR_USD",
+                "units": "1000",
+                "price": "1.0800",
+                "time": "2024-01-15T12:00:00.000000000Z",
+            }
+        }
+
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = order_response
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            await client.create_limit_order(
+                "EUR_USD",
+                Decimal("1000"),
+                Decimal("1.0800"),
+                stop_loss=Decimal("1.0750"),
+                take_profit=Decimal("1.0900"),
+            )
+
+            call_kwargs = mock_http.post.call_args[1]
+            order_data = call_kwargs["json"]["order"]
+            assert "stopLossOnFill" in order_data
+            assert "takeProfitOnFill" in order_data
+
+    @pytest.mark.asyncio
+    async def test_create_limit_order_rejected(self, client):
+        """Should raise RuntimeError when order rejected."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "orderRejectTransaction": {"rejectReason": "INSUFFICIENT_MARGIN"}
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            with pytest.raises(RuntimeError, match="Order rejected"):
+                await client.create_limit_order("EUR_USD", Decimal("1000"), Decimal("1.0800"))
+
+    @pytest.mark.asyncio
+    async def test_create_limit_order_unexpected_response(self, client):
+        """Should raise RuntimeError on unexpected response."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"unexpectedField": "value"}
+        mock_response.raise_for_status = MagicMock()
+        mock_http.post = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            with pytest.raises(RuntimeError, match="Unexpected order response"):
+                await client.create_limit_order("EUR_USD", Decimal("1000"), Decimal("1.0800"))
+
 
 class TestCloseTrade:
     """Tests for OandaTradingClient.close_trade()."""
@@ -264,6 +389,266 @@ class TestCloseTrade:
         """Should raise RuntimeError when live trading disabled."""
         with pytest.raises(RuntimeError, match="Live trading is disabled"):
             await client_live_disabled.close_trade("trade-123")
+
+    @pytest.mark.asyncio
+    async def test_close_trade_partial(self, client):
+        """Should close partial units when specified."""
+        close_response = {
+            "orderFillTransaction": {
+                "orderID": "order-999",
+                "instrument": "EUR_USD",
+                "units": "-500",
+                "price": "1.0860",
+                "time": "2024-01-15T13:00:00.000000000Z",
+            }
+        }
+
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = close_response
+        mock_response.raise_for_status = MagicMock()
+        mock_http.put = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            result = await client.close_trade("trade-123", units=Decimal("500"))
+
+            assert result.state == "FILLED"
+            call_kwargs = mock_http.put.call_args[1]
+            assert call_kwargs["json"]["units"] == "500"
+
+    @pytest.mark.asyncio
+    async def test_close_trade_unexpected_response(self, client):
+        """Should raise RuntimeError on unexpected response."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"unexpectedField": "value"}
+        mock_response.raise_for_status = MagicMock()
+        mock_http.put = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            with pytest.raises(RuntimeError, match="Unexpected close response"):
+                await client.close_trade("trade-123")
+
+
+class TestCancelOrder:
+    """Tests for OandaTradingClient.cancel_order()."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_order_success(self, client):
+        """Should return cancel response on success."""
+        cancel_response = {
+            "orderCancelTransaction": {
+                "orderID": "order-123",
+                "reason": "CLIENT_REQUEST",
+            }
+        }
+
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = cancel_response
+        mock_response.raise_for_status = MagicMock()
+        mock_http.put = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            result = await client.cancel_order("order-123")
+
+            assert "orderCancelTransaction" in result
+
+    @pytest.mark.asyncio
+    async def test_cancel_order_live_disabled(self, client_live_disabled):
+        """Should raise RuntimeError when live trading disabled."""
+        with pytest.raises(RuntimeError, match="Live trading is disabled"):
+            await client_live_disabled.cancel_order("order-123")
+
+
+class TestGetPendingOrders:
+    """Tests for OandaTradingClient.get_pending_orders()."""
+
+    @pytest.mark.asyncio
+    async def test_get_pending_orders_success(self, client):
+        """Should return list of pending orders."""
+        orders_response = {
+            "orders": [
+                {
+                    "id": "order-123",
+                    "instrument": "EUR_USD",
+                    "units": "1000",
+                    "price": "1.0800",
+                    "state": "PENDING",
+                    "type": "LIMIT",
+                    "createTime": "2024-01-15T12:00:00.000000000Z",
+                }
+            ]
+        }
+
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = orders_response
+        mock_response.raise_for_status = MagicMock()
+        mock_http.get = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            orders = await client.get_pending_orders()
+
+            assert len(orders) == 1
+            assert isinstance(orders[0], OandaOrder)
+            assert orders[0].id == "order-123"
+            assert orders[0].state == "PENDING"
+
+    @pytest.mark.asyncio
+    async def test_get_pending_orders_empty(self, client):
+        """Should return empty list when no pending orders."""
+        mock_http = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"orders": []}
+        mock_response.raise_for_status = MagicMock()
+        mock_http.get = AsyncMock(return_value=mock_response)
+
+        with patch.object(client, "_get_client", AsyncMock(return_value=mock_http)):
+            orders = await client.get_pending_orders()
+
+            assert orders == []
+
+
+class TestCloseAllTrades:
+    """Tests for OandaTradingClient.close_all_trades()."""
+
+    @pytest.mark.asyncio
+    async def test_close_all_trades_success(self, client, mock_trades_response):
+        """Should close all trades and return results."""
+        close_response = {
+            "orderFillTransaction": {
+                "orderID": "order-999",
+                "instrument": "EUR_USD",
+                "units": "-1000",
+                "price": "1.0860",
+                "time": "2024-01-15T13:00:00.000000000Z",
+            }
+        }
+
+        with patch.object(client, "get_open_trades") as mock_get_trades, \
+             patch.object(client, "close_trade") as mock_close:
+            mock_get_trades.return_value = [
+                OandaTrade(
+                    id="trade-123",
+                    instrument="EUR_USD",
+                    units=Decimal("1000"),
+                    price=Decimal("1.0850"),
+                    unrealized_pnl=Decimal("25.00"),
+                    state="OPEN",
+                    open_time=datetime.now(timezone.utc),
+                )
+            ]
+            mock_close.return_value = OandaOrderResponse(
+                order_id="order-999",
+                trade_id="trade-123",
+                instrument="EUR_USD",
+                units=Decimal("-1000"),
+                price=Decimal("1.0860"),
+                time=datetime.now(timezone.utc),
+                state="FILLED",
+            )
+
+            results = await client.close_all_trades()
+
+            assert len(results) == 1
+            mock_close.assert_called_once_with("trade-123")
+
+    @pytest.mark.asyncio
+    async def test_close_all_trades_with_failure(self, client):
+        """Should continue closing other trades even if one fails."""
+        with patch.object(client, "get_open_trades") as mock_get_trades, \
+             patch.object(client, "close_trade") as mock_close:
+            mock_get_trades.return_value = [
+                OandaTrade(
+                    id="trade-1",
+                    instrument="EUR_USD",
+                    units=Decimal("1000"),
+                    price=Decimal("1.0850"),
+                    unrealized_pnl=Decimal("25.00"),
+                    state="OPEN",
+                    open_time=datetime.now(timezone.utc),
+                ),
+                OandaTrade(
+                    id="trade-2",
+                    instrument="GBP_USD",
+                    units=Decimal("500"),
+                    price=Decimal("1.2500"),
+                    unrealized_pnl=Decimal("10.00"),
+                    state="OPEN",
+                    open_time=datetime.now(timezone.utc),
+                ),
+            ]
+            # First trade fails, second succeeds
+            mock_close.side_effect = [
+                Exception("Failed to close trade-1"),
+                OandaOrderResponse(
+                    order_id="order-999",
+                    trade_id="trade-2",
+                    instrument="GBP_USD",
+                    units=Decimal("-500"),
+                    price=Decimal("1.2510"),
+                    time=datetime.now(timezone.utc),
+                    state="FILLED",
+                ),
+            ]
+
+            results = await client.close_all_trades()
+
+            # Only second trade should be in results
+            assert len(results) == 1
+            assert mock_close.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_close_all_trades_live_disabled(self, client_live_disabled):
+        """Should raise RuntimeError when live trading disabled."""
+        with pytest.raises(RuntimeError, match="Live trading is disabled"):
+            await client_live_disabled.close_all_trades()
+
+
+class TestClientManagement:
+    """Tests for client initialization and cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_get_client_creates_new(self, client):
+        """Should create new HTTP client when none exists."""
+        assert client._client is None
+
+        http_client = await client._get_client()
+
+        assert http_client is not None
+        assert not http_client.is_closed
+
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_get_client_reuses_existing(self, client):
+        """Should reuse existing HTTP client if not closed."""
+        first_client = await client._get_client()
+        second_client = await client._get_client()
+
+        assert first_client is second_client
+
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_close_closes_client(self, client):
+        """Should close HTTP client."""
+        await client._get_client()
+        assert client._client is not None
+
+        await client.close()
+
+        assert client._client is None
+
+    @pytest.mark.asyncio
+    async def test_close_idempotent(self, client):
+        """Should handle closing when already closed."""
+        # Close without creating client first
+        await client.close()
+
+        # Close again - should not raise
+        await client.close()
 
 
 class TestCheckConnectivity:
