@@ -57,7 +57,7 @@ pytest
 
 ## Testing
 
-The project includes comprehensive test coverage for critical trading services:
+The project includes comprehensive test coverage for critical trading services and API endpoints:
 
 ```bash
 # Run all tests
@@ -69,9 +69,12 @@ pytest tests/ --cov=tradingsystem.services --cov-report=term-missing
 # Run specific test categories
 pytest tests/unit/           # Unit tests only
 pytest tests/integration/    # Integration tests only
+pytest tests/api/            # API endpoint tests only
 ```
 
 ### Test Coverage
+
+#### Service Layer (P1/P2)
 
 | Service | Coverage | Description |
 |---------|----------|-------------|
@@ -83,4 +86,16 @@ pytest tests/integration/    # Integration tests only
 | Backtest Service | 98% | Backtest execution, result persistence |
 | Performance Service | 97% | Metrics calculation, equity curves |
 
-**Total: 122 tests with 96% coverage on core services**
+#### API Endpoints (P3)
+
+| Router | Tests | Description |
+|--------|-------|-------------|
+| Orders | 17 | Order CRUD, trade execution |
+| Positions | 18 | Position management, P&L |
+| Live Trading | 20 | OANDA trading, risk checks |
+| Strategies | 19 | Strategy lifecycle, run-once |
+| Backtest | 16 | Backtest execution, history |
+| Dashboard | 19 | Portfolio, performance, alerts |
+| Main | 11 | Health checks, API docs |
+
+**Total: 240 tests with 96% coverage on core services**
