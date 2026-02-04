@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingSystem Dashboard</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-blue: #58a6ff;
+            --accent-yellow: #d29922;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .account-info {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+        }
+
+        .account-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .account-label {
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .account-value {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .account-value.positive { color: var(--accent-green); }
+        .account-value.negative { color: var(--accent-red); }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: auto 1fr;
+            height: calc(100vh - 57px);
+        }
+
+        /* Instrument Tabs */
+        .instrument-tabs {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            padding: 0 16px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        /* Chart Area */
+        .chart-area {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .chart-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chart-price {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .chart-change {
+            font-size: 14px;
+            margin-left: 12px;
+        }
+
+        .timeframe-buttons {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tf-btn {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .tf-btn:hover, .tf-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        #chart {
+            height: calc(100% - 50px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 12px;
+        }
+
+        /* Order Form */
+        .order-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .order-type-toggle {
+            display: flex;
+            gap: 8px;
+        }
+
+        .order-type-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .order-type-btn.buy {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .order-type-btn.buy:hover {
+            background: #2ea043;
+        }
+
+        .order-type-btn.sell {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .order-type-btn.sell.active {
+            background: var(--accent-red);
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .submit-btn {
+            padding: 12px;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        .submit-btn:hover {
+            background: #2ea043;
+        }
+
+        /* Positions */
+        .positions-panel {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .position-card {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .position-instrument {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .position-side {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .position-side.long {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+
+        .position-side.short {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+
+        .position-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .position-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .position-detail-label {
+            color: var(--text-secondary);
+        }
+
+        .position-detail-value {
+            font-weight: 500;
+        }
+
+        .position-pnl {
+            text-align: right;
+        }
+
+        .position-pnl .position-detail-value.positive { color: var(--accent-green); }
+        .position-pnl .position-detail-value.negative { color: var(--accent-red); }
+
+        .position-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .position-btn {
+            flex: 1;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .position-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .position-btn.close {
+            background: var(--accent-red);
+            color: white;
+            border-color: var(--accent-red);
+        }
+
+        /* Bottom Tables */
+        .bottom-section {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .bottom-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+        }
+
+        .bottom-tab {
+            padding: 10px 16px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .bottom-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .bottom-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .table-container {
+            padding: 16px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-badge.filled {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+
+        .status-badge.pending {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .status-badge.cancelled {
+            background: rgba(139, 148, 158, 0.2);
+            color: var(--text-secondary);
+        }
+
+        /* Signals Panel */
+        .signal-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .signal-item:last-child {
+            border-bottom: none;
+        }
+
+        .signal-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .signal-icon.buy {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+
+        .signal-icon.sell {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+
+        .signal-info {
+            flex: 1;
+        }
+
+        .signal-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .signal-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .signal-strength {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">TradingSystem</div>
+        <div class="account-info">
+            <div class="account-item">
+                <span class="account-label">Balance</span>
+                <span class="account-value">$10,450.00</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Unrealized P&L</span>
+                <span class="account-value positive">+$127.50</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Daily P&L</span>
+                <span class="account-value positive">+$89.25</span>
+            </div>
+            <div class="account-item">
+                <span class="account-label">Margin Used</span>
+                <span class="account-value">$1,250.00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Instrument Tabs -->
+        <div class="instrument-tabs">
+            <div class="tab active">EUR/USD</div>
+            <div class="tab">GBP/USD</div>
+            <div class="tab">USD/JPY</div>
+            <div class="tab">AUD/USD</div>
+            <div class="tab">USD/CAD</div>
+        </div>
+
+        <!-- Chart Area -->
+        <div class="chart-area">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <span class="chart-title">EUR/USD</span>
+                        <span class="chart-price">1.0852</span>
+                        <span class="chart-change positive">+0.0023 (+0.21%)</span>
+                    </div>
+                    <div class="timeframe-buttons">
+                        <button class="tf-btn">1m</button>
+                        <button class="tf-btn">5m</button>
+                        <button class="tf-btn">15m</button>
+                        <button class="tf-btn active">1H</button>
+                        <button class="tf-btn">4H</button>
+                        <button class="tf-btn">1D</button>
+                    </div>
+                </div>
+                <div id="chart"></div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Order Form -->
+            <div class="panel">
+                <div class="panel-header">New Order</div>
+                <div class="panel-content">
+                    <div class="order-form">
+                        <div class="order-type-toggle">
+                            <button class="order-type-btn buy active">Buy</button>
+                            <button class="order-type-btn sell">Sell</button>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity (units)</label>
+                            <input type="number" class="form-input" value="1000" step="100">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Stop Loss</label>
+                                <input type="text" class="form-input" placeholder="1.0800">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Take Profit</label>
+                                <input type="text" class="form-input" placeholder="1.0950">
+                            </div>
+                        </div>
+                        <button class="submit-btn">Place Buy Order</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Signals -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Signals</span>
+                    <span style="font-size: 11px; color: var(--accent-green);">Live</span>
+                </div>
+                <div class="panel-content">
+                    <div class="signal-item">
+                        <div class="signal-icon buy">&#8593;</div>
+                        <div class="signal-info">
+                            <div class="signal-title">MA Crossover - BUY</div>
+                            <div class="signal-meta">EUR/USD &bull; 2 min ago</div>
+                        </div>
+                        <div class="signal-strength positive">0.85</div>
+                    </div>
+                    <div class="signal-item">
+                        <div class="signal-icon sell">&#8595;</div>
+                        <div class="signal-info">
+                            <div class="signal-title">RSI Reversal - SELL</div>
+                            <div class="signal-meta">GBP/USD &bull; 15 min ago</div>
+                        </div>
+                        <div class="signal-strength negative">0.72</div>
+                    </div>
+                    <div class="signal-item">
+                        <div class="signal-icon buy">&#8593;</div>
+                        <div class="signal-info">
+                            <div class="signal-title">MA Crossover - BUY</div>
+                            <div class="signal-meta">USD/JPY &bull; 28 min ago</div>
+                        </div>
+                        <div class="signal-strength positive">0.68</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Open Positions -->
+            <div class="panel positions-panel">
+                <div class="panel-header">
+                    <span>Positions</span>
+                    <span style="font-size: 11px;">2 open</span>
+                </div>
+                <div class="panel-content">
+                    <div class="position-card">
+                        <div class="position-header">
+                            <span class="position-instrument">EUR/USD</span>
+                            <span class="position-side long">LONG</span>
+                        </div>
+                        <div class="position-details">
+                            <div class="position-detail">
+                                <span class="position-detail-label">Quantity</span>
+                                <span class="position-detail-value">1,000</span>
+                            </div>
+                            <div class="position-detail position-pnl">
+                                <span class="position-detail-label">P&L</span>
+                                <span class="position-detail-value positive">+$45.20</span>
+                            </div>
+                            <div class="position-detail">
+                                <span class="position-detail-label">Entry</span>
+                                <span class="position-detail-value">1.0829</span>
+                            </div>
+                            <div class="position-detail">
+                                <span class="position-detail-label">Current</span>
+                                <span class="position-detail-value">1.0852</span>
+                            </div>
+                        </div>
+                        <div class="position-actions">
+                            <button class="position-btn">Modify</button>
+                            <button class="position-btn close">Close</button>
+                        </div>
+                    </div>
+                    <div class="position-card">
+                        <div class="position-header">
+                            <span class="position-instrument">GBP/USD</span>
+                            <span class="position-side short">SHORT</span>
+                        </div>
+                        <div class="position-details">
+                            <div class="position-detail">
+                                <span class="position-detail-label">Quantity</span>
+                                <span class="position-detail-value">500</span>
+                            </div>
+                            <div class="position-detail position-pnl">
+                                <span class="position-detail-label">P&L</span>
+                                <span class="position-detail-value positive">+$82.30</span>
+                            </div>
+                            <div class="position-detail">
+                                <span class="position-detail-label">Entry</span>
+                                <span class="position-detail-value">1.2685</span>
+                            </div>
+                            <div class="position-detail">
+                                <span class="position-detail-label">Current</span>
+                                <span class="position-detail-value">1.2652</span>
+                            </div>
+                        </div>
+                        <div class="position-actions">
+                            <button class="position-btn">Modify</button>
+                            <button class="position-btn close">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate mock candlestick data
+        function generateCandlestickData() {
+            const data = [];
+            let time = new Date('2024-01-15T00:00:00');
+            let open = 1.0800;
+
+            for (let i = 0; i < 100; i++) {
+                const volatility = 0.0015;
+                const trend = 0.00005;
+
+                const change = (Math.random() - 0.48) * volatility;
+                const close = open + change + trend;
+                const high = Math.max(open, close) + Math.random() * volatility * 0.5;
+                const low = Math.min(open, close) - Math.random() * volatility * 0.5;
+
+                data.push({
+                    time: time.toISOString().split('T')[0] + ' ' +
+                          time.toTimeString().split(' ')[0].substring(0, 5),
+                    open: parseFloat(open.toFixed(5)),
+                    high: parseFloat(high.toFixed(5)),
+                    low: parseFloat(low.toFixed(5)),
+                    close: parseFloat(close.toFixed(5)),
+                });
+
+                open = close;
+                time = new Date(time.getTime() + 60 * 60 * 1000); // Add 1 hour
+            }
+
+            return data;
+        }
+
+        // Generate volume data
+        function generateVolumeData(candleData) {
+            return candleData.map(candle => ({
+                time: candle.time,
+                value: Math.floor(Math.random() * 1000000) + 500000,
+                color: candle.close >= candle.open ? 'rgba(63, 185, 80, 0.5)' : 'rgba(248, 81, 73, 0.5)',
+            }));
+        }
+
+        // Initialize chart
+        const chartContainer = document.getElementById('chart');
+        const chart = LightweightCharts.createChart(chartContainer, {
+            layout: {
+                background: { color: '#161b22' },
+                textColor: '#8b949e',
+            },
+            grid: {
+                vertLines: { color: '#21262d' },
+                horzLines: { color: '#21262d' },
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: '#30363d',
+            },
+            timeScale: {
+                borderColor: '#30363d',
+                timeVisible: true,
+            },
+        });
+
+        // Add candlestick series
+        const candlestickSeries = chart.addCandlestickSeries({
+            upColor: '#3fb950',
+            downColor: '#f85149',
+            borderDownColor: '#f85149',
+            borderUpColor: '#3fb950',
+            wickDownColor: '#f85149',
+            wickUpColor: '#3fb950',
+        });
+
+        const candleData = generateCandlestickData();
+        candlestickSeries.setData(candleData);
+
+        // Add volume series
+        const volumeSeries = chart.addHistogramSeries({
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: '',
+        });
+
+        volumeSeries.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.8,
+                bottom: 0,
+            },
+        });
+
+        volumeSeries.setData(generateVolumeData(candleData));
+
+        // Add SMA line
+        const smaData = candleData.map((candle, index, arr) => {
+            if (index < 20) return null;
+            const sum = arr.slice(index - 20, index).reduce((acc, c) => acc + c.close, 0);
+            return {
+                time: candle.time,
+                value: sum / 20,
+            };
+        }).filter(d => d !== null);
+
+        const smaSeries = chart.addLineSeries({
+            color: '#58a6ff',
+            lineWidth: 2,
+        });
+        smaSeries.setData(smaData);
+
+        // Fit content
+        chart.timeScale().fitContent();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            chart.applyOptions({
+                width: chartContainer.clientWidth,
+                height: chartContainer.clientHeight,
+            });
+        });
+
+        // Interactive elements
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.tf-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.order-type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.order-type-btn').forEach(b => {
+                    b.classList.remove('active');
+                    if (b.classList.contains('sell')) {
+                        b.style.background = 'var(--bg-tertiary)';
+                        b.style.color = 'var(--text-secondary)';
+                    }
+                });
+                this.classList.add('active');
+
+                const submitBtn = document.querySelector('.submit-btn');
+                if (this.classList.contains('sell')) {
+                    this.style.background = 'var(--accent-red)';
+                    this.style.color = 'white';
+                    submitBtn.textContent = 'Place Sell Order';
+                    submitBtn.style.background = 'var(--accent-red)';
+                } else {
+                    submitBtn.textContent = 'Place Buy Order';
+                    submitBtn.style.background = 'var(--accent-green)';
+                }
+            });
+        });
+
+        document.querySelectorAll('.bottom-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
