@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from tradingsystem.models.signal import SignalType
 
@@ -89,8 +89,7 @@ class BacktestResult(BaseModel):
     equity_curve: list[EquityPoint] = []
     created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BacktestRequest(BaseModel):
