@@ -60,27 +60,103 @@ pytest
 
 ### Pre-commit Hooks
 
-Install pre-commit hooks to ensure code quality before commits:
+Pre-commit hooks ensure code quality before every commit. Install once:
 
 ```bash
 pip install pre-commit
 pre-commit install
 ```
 
-Hooks run automatically on `git commit`:
-- Trailing whitespace removal
-- YAML/JSON validation
-- Ruff linting and formatting
-- Fast unit tests
+**Hooks executed on `git commit`:**
 
-### CI/CD
+| Hook | Description |
+|------|-------------|
+| `trailing-whitespace` | Removes trailing whitespace |
+| `end-of-file-fixer` | Ensures files end with newline |
+| `check-yaml` | Validates YAML syntax |
+| `check-json` | Validates JSON syntax |
+| `check-added-large-files` | Blocks files >1MB |
+| `check-merge-conflict` | Detects merge conflict markers |
+| `detect-private-key` | Prevents committing private keys |
+| `ruff` | Lints Python code with auto-fix |
+| `ruff-format` | Formats Python code |
+| `pytest-fast` | Runs unit tests (fast subset) |
 
-GitHub Actions runs automatically on push/PR to master:
-- **Test Suite**: Full pytest with coverage (must maintain 85%+)
-- **Code Quality**: Ruff linting and formatting checks
-- **Security Scan**: Bandit and safety dependency checks
+**Manual commands:**
+```bash
+pre-commit run --all-files  # Run all hooks on all files
+pre-commit autoupdate       # Update hook versions
+```
 
-View CI status: [Actions](https://github.com/ii90475/TradingSystem/actions)
+### CI/CD Pipeline
+
+GitHub Actions runs automatically on push/PR to `master`, `main`, or `develop` branches.
+
+**Workflow: `.github/workflows/ci.yml`**
+
+#### Test Suite Job
+
+Runs the full test suite with coverage reporting:
+
+```yaml
+- pytest tests/ --cov=tradingsystem --cov-fail-under=85
+- Upload coverage to Codecov
+```
+
+| Check | Requirement |
+|-------|-------------|
+| All tests pass | Required |
+| Coverage ≥85% | Required |
+| Coverage report | Uploaded to Codecov |
+
+#### Code Quality Job
+
+Static analysis and formatting checks:
+
+| Tool | Purpose | Status |
+|------|---------|--------|
+| Ruff Linter | Code quality rules (E, F, I, N, W, UP) | Warning |
+| Ruff Formatter | Code style consistency | Warning |
+
+#### Security Scan Job
+
+Vulnerability detection:
+
+| Tool | Purpose | Status |
+|------|---------|--------|
+| Bandit | Python security issues | Warning |
+| Safety | Dependency vulnerabilities | Warning |
+
+**View CI Status:** [GitHub Actions](https://github.com/ii90475/TradingSystem/actions)
+
+#### Setting Up Codecov (Optional)
+
+To enable coverage tracking with Codecov:
+
+1. Sign up at [codecov.io](https://codecov.io) with GitHub
+2. Add repository to Codecov
+3. Add `CODECOV_TOKEN` to repository secrets:
+   - GitHub → Settings → Secrets → Actions → New repository secret
+4. Coverage badge will auto-update on each push
+
+#### Running CI Locally
+
+Simulate CI checks before pushing:
+
+```bash
+# Run full test suite with coverage
+pytest tests/ --cov=tradingsystem --cov-report=term-missing --cov-fail-under=85
+
+# Run linter
+ruff check src/tradingsystem
+
+# Run formatter check
+ruff format src/tradingsystem --check
+
+# Run security scan
+bandit -r src/tradingsystem -ll
+safety check
+```
 
 ## Testing
 
