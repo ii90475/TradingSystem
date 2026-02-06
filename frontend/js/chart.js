@@ -17,6 +17,8 @@ class ChartManager {
         this.previousPrice = null;
         this.priceLineResetTimeout = null;
         this.lastCandleData = null;
+        // Store zoom state per instrument+period combination
+        this.zoomStateByKey = new Map();
     }
 
     init() {
@@ -138,6 +140,9 @@ class ChartManager {
     }
 
     async loadData(instrument, period = 'M5') {
+        // Save current zoom state before switching
+        this.saveZoomState();
+
         this.currentInstrument = instrument;
         this.currentPeriod = period;
 
@@ -153,7 +158,7 @@ class ChartManager {
             const candles = await api.getChartCandles(chartData.id, null, null, 200);
             console.log(`Loaded ${candles.length} candles, latest:`, candles[0]);
 
-            this.setData(candles);
+            this.setData(candles, true);
         } catch (error) {
             console.error('Failed to load chart data:', error);
             // Load mock data as fallback
@@ -220,7 +225,53 @@ class ChartManager {
         this.chart.timeScale().applyOptions(timeScaleOptions);
     }
 
-    setData(candles) {
+    /**
+     * Get the key for storing zoom state (instrument + period combination).
+     */
+    getZoomKey() {
+        return `${this.currentInstrument}:${this.currentPeriod}`;
+    }
+
+    /**
+     * Save the current zoom state (visible time range) for the current instrument+period.
+     */
+    saveZoomState() {
+        if (!this.chart || !this.currentInstrument || !this.currentPeriod) return;
+
+        const timeScale = this.chart.timeScale();
+        const visibleRange = timeScale.getVisibleRange();
+
+        if (visibleRange) {
+            const key = this.getZoomKey();
+            this.zoomStateByKey.set(key, {
+                from: visibleRange.from,
+                to: visibleRange.to,
+            });
+        }
+    }
+
+    /**
+     * Restore the saved zoom state for the current instrument+period.
+     * Returns true if a saved state was restored, false otherwise.
+     */
+    restoreZoomState() {
+        if (!this.chart || !this.currentInstrument || !this.currentPeriod) return false;
+
+        const key = this.getZoomKey();
+        const savedState = this.zoomStateByKey.get(key);
+
+        if (savedState) {
+            this.chart.timeScale().setVisibleRange({
+                from: savedState.from,
+                to: savedState.to,
+            });
+            return true;
+        }
+
+        return false;
+    }
+
+    setData(candles, restoreZoom = false) {
         if (!candles || candles.length === 0) {
             this.loadMockData();
             return;
@@ -255,8 +306,12 @@ class ChartManager {
         const smaData = this.calculateSMA(candleData, 20);
         this.smaSeries.setData(smaData);
 
-        // Fit content
-        this.chart.timeScale().fitContent();
+        // Restore saved zoom state or fit content
+        if (restoreZoom && this.restoreZoomState()) {
+            // Zoom state restored successfully
+        } else {
+            this.chart.timeScale().fitContent();
+        }
 
         // Store last candle for OHLC display when cursor is outside chart
         if (candleData.length > 0) {
