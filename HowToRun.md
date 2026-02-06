@@ -291,6 +291,15 @@ WHERE time >= '2026-01-30 00:00:00+00'
   AND time < '2026-01-31 00:00:00+00';
 ```
 
+### Friday Close Capture
+
+RateService automatically captures the final market close price at exactly 5:00 PM New York time on Fridays. This ensures the last candle of the week has accurate close, high, and low values reflecting the final traded prices before the weekend.
+
+The job runs 5 seconds after market close to ensure the final tick is captured, and updates:
+- **Close**: Set to the final mid-price
+- **High**: Updated if final price exceeds previous high
+- **Low**: Updated if final price is below previous low
+
 ### Data Backfill
 
 If data gaps occur, backfill via the RateService API:
