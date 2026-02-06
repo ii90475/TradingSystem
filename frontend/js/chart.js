@@ -141,6 +141,9 @@ class ChartManager {
         this.currentInstrument = instrument;
         this.currentPeriod = period;
 
+        // Update time scale format for the new period
+        this.updateTimeScaleFormat(period);
+
         try {
             // Try to get chart data from API
             console.log(`Loading chart for ${instrument} ${period}`);
@@ -156,6 +159,65 @@ class ChartManager {
             // Load mock data as fallback
             this.loadMockData();
         }
+    }
+
+    updateTimeScaleFormat(period) {
+        if (!this.chart) return;
+
+        // Determine appropriate time format based on period
+        const timeScaleOptions = {
+            borderColor: '#30363d',
+            timeVisible: true,
+            secondsVisible: false,
+        };
+
+        // Configure tick mark formatter based on period
+        if (period.startsWith('M') || period === 'H1') {
+            // Minutes or hourly: show time prominently
+            timeScaleOptions.tickMarkFormatter = (time, tickMarkType, locale) => {
+                const date = new Date(time * 1000);
+                if (tickMarkType === LightweightCharts.TickMarkType.Year) {
+                    return date.getFullYear().toString();
+                }
+                if (tickMarkType === LightweightCharts.TickMarkType.Month) {
+                    return date.toLocaleDateString(locale, { month: 'short' });
+                }
+                if (tickMarkType === LightweightCharts.TickMarkType.DayOfMonth) {
+                    return date.getDate().toString();
+                }
+                // For time ticks, show HH:MM
+                return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
+            };
+        } else if (period === 'H4') {
+            // 4-hour: show date and time
+            timeScaleOptions.tickMarkFormatter = (time, tickMarkType, locale) => {
+                const date = new Date(time * 1000);
+                if (tickMarkType === LightweightCharts.TickMarkType.Year) {
+                    return date.getFullYear().toString();
+                }
+                if (tickMarkType === LightweightCharts.TickMarkType.Month) {
+                    return date.toLocaleDateString(locale, { month: 'short' });
+                }
+                if (tickMarkType === LightweightCharts.TickMarkType.DayOfMonth) {
+                    return date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+                }
+                return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
+            };
+        } else {
+            // Daily or longer: show date only
+            timeScaleOptions.tickMarkFormatter = (time, tickMarkType, locale) => {
+                const date = new Date(time * 1000);
+                if (tickMarkType === LightweightCharts.TickMarkType.Year) {
+                    return date.getFullYear().toString();
+                }
+                if (tickMarkType === LightweightCharts.TickMarkType.Month) {
+                    return date.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+                }
+                return date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+            };
+        }
+
+        this.chart.timeScale().applyOptions(timeScaleOptions);
     }
 
     setData(candles) {
@@ -223,6 +285,9 @@ class ChartManager {
     }
 
     loadMockData() {
+        // Apply time scale format for current period
+        this.updateTimeScaleFormat(this.currentPeriod);
+
         const data = [];
         let time = Math.floor(Date.now() / 1000) - 100 * 3600;
         let open = 1.0800;
