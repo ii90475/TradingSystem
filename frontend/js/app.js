@@ -15,6 +15,10 @@ class TradingApp {
         this.rateRefreshInterval = null;
         this.isConnected = false;
         this.lastRate = null;
+        this.ratesWebSocket = null;
+        this.wsReconnectAttempts = 0;
+        this.wsMaxReconnectAttempts = 10;
+        this.wsReconnectDelay = 1000;
     }
 
     async init() {
@@ -75,6 +79,9 @@ class TradingApp {
                 this.loadPositions(),
                 this.loadSignals(),
             ]);
+
+            // Connect to WebSocket for real-time rates
+            this.connectRatesWebSocket();
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showToast('Failed to connect to server', 'error');
@@ -82,6 +89,89 @@ class TradingApp {
             // Load mock data for chart
             this.chart.loadMockData();
         }
+    }
+
+    connectRatesWebSocket() {
+        if (this.ratesWebSocket && this.ratesWebSocket.readyState === WebSocket.OPEN) {
+            return; // Already connected
+        }
+
+        const wsUrl = api.getWebSocketUrl();
+        console.log(`Connecting to WebSocket: ${wsUrl}`);
+
+        try {
+            this.ratesWebSocket = new WebSocket(wsUrl);
+
+            this.ratesWebSocket.onopen = () => {
+                console.log('WebSocket connected');
+                this.wsReconnectAttempts = 0;
+                this.showToast('Real-time rates connected', 'success');
+            };
+
+            this.ratesWebSocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                } catch (e) {
+                    console.error('Failed to parse WebSocket message:', e);
+                }
+            };
+
+            this.ratesWebSocket.onclose = (event) => {
+                console.log(`WebSocket closed: ${event.code} ${event.reason}`);
+                this.handleWebSocketReconnect();
+            };
+
+            this.ratesWebSocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        } catch (error) {
+            console.error('Failed to create WebSocket:', error);
+            this.handleWebSocketReconnect();
+        }
+    }
+
+    handleWebSocketMessage(message) {
+        if (message.type === 'rates' && message.data) {
+            // Find rate for current instrument
+            const rate = message.data.find(r => r.pair === this.currentInstrument);
+            if (rate) {
+                this.lastRate = rate;
+                this.updateRateDisplay(rate);
+            }
+        } else if (message.type === 'error') {
+            console.error('WebSocket rate error:', message.message);
+        }
+    }
+
+    handleWebSocketReconnect() {
+        if (this.wsReconnectAttempts >= this.wsMaxReconnectAttempts) {
+            console.log('Max WebSocket reconnect attempts reached, falling back to HTTP polling');
+            this.startHttpPolling();
+            return;
+        }
+
+        this.wsReconnectAttempts++;
+        const delay = this.wsReconnectDelay * Math.pow(2, this.wsReconnectAttempts - 1);
+        console.log(`WebSocket reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts})`);
+
+        setTimeout(() => {
+            if (this.isConnected) {
+                this.connectRatesWebSocket();
+            }
+        }, delay);
+    }
+
+    startHttpPolling() {
+        // Fallback to HTTP polling if WebSocket fails
+        if (this.rateRefreshInterval) return;
+
+        console.log('Starting HTTP polling fallback for rates');
+        this.rateRefreshInterval = setInterval(async () => {
+            if (this.isConnected) {
+                await this.loadCurrentRate();
+            }
+        }, 2000);
     }
 
     async loadAccountData() {
@@ -426,12 +516,8 @@ class TradingApp {
             }
         }, 10000);
 
-        // Refresh current rate every 2 seconds for real-time pricing
-        this.rateRefreshInterval = setInterval(async () => {
-            if (this.isConnected) {
-                await this.loadCurrentRate();
-            }
-        }, 2000);
+        // Note: Real-time rates are now handled via WebSocket
+        // HTTP polling is only used as fallback (see startHttpPolling)
     }
 
     stopAutoRefresh() {
@@ -442,6 +528,13 @@ class TradingApp {
         if (this.rateRefreshInterval) {
             clearInterval(this.rateRefreshInterval);
             this.rateRefreshInterval = null;
+        }
+    }
+
+    disconnectRatesWebSocket() {
+        if (this.ratesWebSocket) {
+            this.ratesWebSocket.close();
+            this.ratesWebSocket = null;
         }
     }
 
@@ -464,6 +557,7 @@ class TradingApp {
 
     destroy() {
         this.stopAutoRefresh();
+        this.disconnectRatesWebSocket();
         if (this.chart) {
             this.chart.destroy();
         }

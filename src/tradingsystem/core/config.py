@@ -59,5 +59,9 @@ class Settings(BaseSettings):
     log_monitor_error_threshold: int = 10
     log_monitor_warning_threshold: int = 50
 
+    # WebSocket streaming
+    ws_rate_poll_interval_ms: int = 250  # How often to poll RateService (ms)
+    ws_enabled: bool = True  # Enable WebSocket endpoints
+
 
 settings = Settings()

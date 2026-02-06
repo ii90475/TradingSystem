@@ -17,6 +17,7 @@ from tradingsystem.core.database import (
     init_schema,
 )
 from tradingsystem.core.rateservice import rateservice_client
+from tradingsystem.core.websocket_manager import rate_manager
 from tradingsystem.services.health import health_state
 from tradingsystem.services import strategy_service
 from tradingsystem.services.alert_service import alert_service
@@ -85,10 +86,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Start monitoring service
     await monitoring_service.start()
 
+    # Start WebSocket rate broadcaster
+    if settings.ws_enabled:
+        await rate_manager.start_broadcasting()
+        logger.info(f"WebSocket rate broadcaster started ({settings.ws_rate_poll_interval_ms}ms interval)")
+
     yield
 
     # Shutdown
     logger.info("Shutting down...")
+    await rate_manager.stop_broadcasting()
     await monitoring_service.stop()
     await close_pool()
     logger.info("Shutdown complete")

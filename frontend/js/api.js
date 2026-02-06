@@ -94,6 +94,15 @@ class TradingAPI {
         return this.request(`/rates/current${params}`);
     }
 
+    async getWebSocketStatus() {
+        return this.request('/rates/ws/status');
+    }
+
+    getWebSocketUrl() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.host}/api/rates/ws`;
+    }
+
     // ==================== Charts ====================
 
     async getCharts() {
