@@ -33,6 +33,7 @@ from tradingsystem.api import (
     positions_router,
     live_trading_router,
     dashboard_router,
+    rates_router,
 )
 
 logging.basicConfig(
@@ -110,6 +111,7 @@ app.include_router(orders_router)
 app.include_router(positions_router)
 app.include_router(live_trading_router)
 app.include_router(dashboard_router)
+app.include_router(rates_router)
 
 # Also register with /api prefix for frontend
 app.include_router(charts_router, prefix="/api")
@@ -121,6 +123,7 @@ app.include_router(orders_router, prefix="/api")
 app.include_router(positions_router, prefix="/api")
 app.include_router(live_trading_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(rates_router, prefix="/api")
 
 # Mount static files for frontend
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
@@ -202,6 +205,7 @@ async def root() -> dict:
             "api": {
                 "dashboard": "/api/dashboard",
                 "charts": "/api/charts",
+                "rates": "/api/rates",
                 "indicators": "/api/indicators",
                 "strategies": "/api/strategies",
                 "signals": "/api/signals",

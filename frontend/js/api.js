@@ -83,6 +83,17 @@ class TradingAPI {
         });
     }
 
+    // ==================== Real-Time Rates ====================
+
+    async getCurrentRate(pair) {
+        return this.request(`/rates/current/${pair}`);
+    }
+
+    async getCurrentRates(pairs = null) {
+        const params = pairs ? `?pairs=${pairs.join('&pairs=')}` : '';
+        return this.request(`/rates/current${params}`);
+    }
+
     // ==================== Charts ====================
 
     async getCharts() {

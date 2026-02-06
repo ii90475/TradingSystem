@@ -12,7 +12,9 @@ class TradingApp {
         this.positions = [];
         this.signals = [];
         this.refreshInterval = null;
+        this.rateRefreshInterval = null;
         this.isConnected = false;
+        this.lastRate = null;
     }
 
     async init() {
@@ -132,6 +134,39 @@ class TradingApp {
         }
 
         await this.chart.loadData(instrument, period);
+
+        // Also load current rate for real-time price
+        await this.loadCurrentRate();
+    }
+
+    async loadCurrentRate() {
+        try {
+            const rate = await api.getCurrentRate(this.currentInstrument);
+            this.lastRate = rate;
+            this.updateRateDisplay(rate);
+        } catch (error) {
+            console.error('Failed to load current rate:', error);
+        }
+    }
+
+    updateRateDisplay(rate) {
+        const priceEl = document.getElementById('chart-price');
+        const changeEl = document.getElementById('chart-change');
+
+        if (priceEl && rate.mid) {
+            priceEl.textContent = rate.mid;
+        }
+
+        // Show freshness indicator in change element when rate is stale
+        if (changeEl && rate.age_seconds !== undefined) {
+            if (rate.age_seconds > 30) {
+                changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s old)`;
+                changeEl.className = 'chart-change negative';
+            } else if (rate.age_seconds > 10) {
+                changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s old)`;
+                changeEl.className = 'chart-change';
+            }
+        }
     }
 
     async loadPositions() {
@@ -390,12 +425,23 @@ class TradingApp {
                 ]);
             }
         }, 10000);
+
+        // Refresh current rate every 2 seconds for real-time pricing
+        this.rateRefreshInterval = setInterval(async () => {
+            if (this.isConnected) {
+                await this.loadCurrentRate();
+            }
+        }, 2000);
     }
 
     stopAutoRefresh() {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
+        }
+        if (this.rateRefreshInterval) {
+            clearInterval(this.rateRefreshInterval);
+            this.rateRefreshInterval = null;
         }
     }
 
