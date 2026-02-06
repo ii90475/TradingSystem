@@ -261,6 +261,14 @@ Interactive docs: **http://localhost:8002/docs**
 
 ## 9. OANDA Data Notes
 
+### Forex Market Hours
+
+The forex market operates 24/5:
+- **Opens:** Sunday 5:00 PM EST (22:00 UTC)
+- **Closes:** Friday 5:00 PM EST (22:00 UTC)
+
+No trading data is available on weekends.
+
 ### Daily Candle Boundary
 
 OANDA uses **5 PM New York time (EST/EDT)** as the daily candle boundary, not UTC midnight.
@@ -296,6 +304,56 @@ Check data coverage:
 ```bash
 curl http://localhost:8000/rates/GBP_USD/coverage
 ```
+
+## 10. Troubleshooting
+
+### RateService Not Collecting Data
+
+1. Check if the service is running:
+   ```bash
+   launchctl list | grep rateservice
+   ```
+
+2. Check the logs:
+   ```bash
+   tail -50 ~/Library/Logs/rateservice.error.log
+   ```
+
+3. Verify market hours (no data on weekends)
+
+4. Manually trigger backfill:
+   ```bash
+   /Users/jamesconsole/Code/TradingSystem/deploy/rateservice-watchdog.sh
+   ```
+
+### Chart Shows Stale Data
+
+1. Check data freshness:
+   ```bash
+   curl http://localhost:8000/rates/EUR_USD/coverage
+   ```
+
+2. Trigger backfill for missing data:
+   ```bash
+   curl -X POST "http://localhost:8000/rates/EUR_USD/backfill" \
+     -H "Content-Type: application/json" \
+     -d '{"from_time": "2026-02-01T00:00:00Z", "to_time": "2026-02-06T00:00:00Z"}'
+   ```
+
+### Service Keeps Crashing
+
+1. Check the watchdog log:
+   ```bash
+   tail -100 ~/Library/Logs/rateservice-watchdog.log
+   ```
+
+2. Restart all services:
+   ```bash
+   launchctl unload ~/Library/LaunchAgents/com.rateservice.app.plist
+   launchctl unload ~/Library/LaunchAgents/com.tradingsystem.app.plist
+   launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
+   launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+   ```
 
 ## Recommended Workflow
 
