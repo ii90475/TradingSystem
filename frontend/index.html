@@ -11,10 +11,6 @@
     <!-- Header -->
     <header class="header">
         <div class="logo">TradingSystem</div>
-        <div class="connection-status">
-            <span id="status-dot" class="status-dot"></span>
-            <span id="status-text">Connecting...</span>
-        </div>
         <div class="account-info">
             <div class="account-item">
                 <span class="account-label">Balance</span>
@@ -32,6 +28,9 @@
                 <span class="account-label">Margin Used</span>
                 <span id="margin-used" class="account-value loading">--</span>
             </div>
+        </div>
+        <div class="connection-status" id="connection-status" title="Connecting...">
+            <span class="plug-icon">⏻</span>
         </div>
     </header>
 
@@ -76,10 +75,19 @@
 
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
-            <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+            <!-- Sidebar Toggle -->
+            <div class="panel sidebar-header">
+                <div class="panel-header">
+                    <span>Trading</span>
+                    <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle sidebar">›</button>
+                </div>
+            </div>
             <!-- Order Form -->
-            <div class="panel">
-                <div class="panel-header">New Order</div>
+            <div class="panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
+                    <span>New Order</span>
+                    <span class="panel-toggle">▼</span>
+                </div>
                 <div class="panel-content">
                     <form id="order-form" class="order-form">
                         <div class="order-type-toggle">
@@ -106,10 +114,13 @@
             </div>
 
             <!-- Recent Signals -->
-            <div class="panel signals-panel">
-                <div class="panel-header">
+            <div class="panel signals-panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
                     <span>Signals</span>
-                    <span style="font-size: 11px; color: var(--accent-green);">Live</span>
+                    <div class="panel-header-right">
+                        <span style="font-size: 11px; color: var(--accent-green);">Live</span>
+                        <span class="panel-toggle">▼</span>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <div id="signals-container">
@@ -119,10 +130,13 @@
             </div>
 
             <!-- Open Positions -->
-            <div class="panel positions-panel">
-                <div class="panel-header">
+            <div class="panel positions-panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
                     <span>Positions</span>
-                    <span id="positions-count" style="font-size: 11px;">--</span>
+                    <div class="panel-header-right">
+                        <span id="positions-count" style="font-size: 11px;">--</span>
+                        <span class="panel-toggle">▼</span>
+                    </div>
                 </div>
                 <div class="panel-content">
                     <div id="positions-container">

@@ -37,6 +37,19 @@ Server runs on **port 8002** (not 8000). Dashboard at http://localhost:8002/ui
 - OANDA API integration for trading
 - Color-coded price movement (green up, red down, blue neutral)
 
+## Dashboard UI
+
+### Header
+- Compact 40px height matching instrument tabs
+- Account info displayed as pill-style chips (Balance, P&L, Margin)
+- Power icon (⏻) connection status: green=connected, red=disconnected
+- Toast notifications appear at top-right near power icon
+
+### Sidebar
+- "Trading" header with toggle (›/‹) to collapse entire sidebar
+- Collapsible panels: New Order, Signals, Positions (click header to toggle)
+- Panel toggle icon (▼) rotates when collapsed
+
 ## Browser Caching
 
 Static CSS/JS files may be cached by the browser. After changes:

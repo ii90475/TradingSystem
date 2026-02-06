@@ -30,7 +30,8 @@ body {
 .header {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
-    padding: 4px 24px;
+    padding: 0 16px;
+    height: 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -45,32 +46,37 @@ body {
 .connection-status {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-secondary);
+    justify-content: center;
+    cursor: default;
 }
 
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent-red);
+.plug-icon {
+    font-size: 18px;
+    color: var(--accent-red);
+    transition: color 0.3s;
 }
 
-.status-dot.connected {
-    background: var(--accent-green);
+.connection-status.connected .plug-icon {
+    color: var(--accent-green);
 }
 
 .account-info {
     display: flex;
-    gap: 24px;
-    font-size: 14px;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 12px;
 }
 
 .account-item {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 11px;
 }
 
 .account-label {
@@ -81,7 +87,8 @@ body {
 
 .account-value {
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
 .account-value.positive { color: var(--accent-green); }
@@ -93,7 +100,7 @@ body {
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-rows: auto 1fr;
-    height: calc(100vh - 32px);
+    height: calc(100vh - 40px);
 }
 
 /* Instrument Tabs */
@@ -248,56 +255,42 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    position: relative;
-    transition: width 0.3s ease, min-width 0.3s ease;
     width: 320px;
-    min-width: 320px;
+    transition: width 0.3s ease;
 }
 
 .sidebar.collapsed {
-    width: 0;
-    min-width: 0;
-    border-left: none;
+    width: 40px;
 }
 
-.sidebar.collapsed .panel,
-.sidebar.collapsed .sidebar-toggle {
-    opacity: 0;
-    pointer-events: none;
+.sidebar.collapsed .sidebar-content {
+    display: none;
 }
 
-.sidebar-toggle {
-    position: absolute;
-    left: -24px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 48px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-right: none;
-    border-radius: 6px 0 0 6px;
+.sidebar-header .panel-header {
+    justify-content: space-between;
+}
+
+.sidebar-toggle-btn {
+    background: none;
+    border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    z-index: 10;
+    font-size: 18px;
+    padding: 0 4px;
+    transition: color 0.2s;
 }
 
-.sidebar-toggle:hover {
-    background: var(--bg-secondary);
+.sidebar-toggle-btn:hover {
     color: var(--text-primary);
 }
 
-.sidebar.collapsed .sidebar-toggle {
-    opacity: 1;
-    pointer-events: auto;
-    left: 0;
-    border-right: 1px solid var(--border-color);
-    border-radius: 0 6px 6px 0;
+.sidebar.collapsed .sidebar-header .panel-header span:first-child {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-toggle-btn {
+    margin: 0 auto;
 }
 
 .panel {
@@ -318,6 +311,35 @@ body {
 
 .panel-content {
     padding: 12px;
+}
+
+/* Collapsible Panels */
+.collapsible .panel-header {
+    cursor: pointer;
+}
+
+.collapsible .panel-header:hover {
+    background: var(--bg-secondary);
+}
+
+.panel-toggle {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.panel.collapsed .panel-toggle {
+    transform: rotate(-90deg);
+}
+
+.panel.collapsed .panel-content {
+    display: none;
+}
+
+.panel-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* Order Form */
@@ -619,8 +641,8 @@ body {
 /* Toast Notifications */
 .toast-container {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    top: 8px;
+    right: 8px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -630,22 +652,23 @@ body {
 .toast {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px 16px;
+    border-radius: 6px;
+    padding: 8px 12px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    animation: slideIn 0.3s ease;
+    animation: slideDown 0.3s ease;
+    font-size: 12px;
 }
 
-@keyframes slideIn {
+@keyframes slideDown {
     from {
-        transform: translateX(100%);
+        transform: translateY(-100%);
         opacity: 0;
     }
     to {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
     }
 }

@@ -67,6 +67,16 @@ class TradingApp {
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', () => this.toggleSidebar());
         }
+
+        // Panel toggles
+        document.querySelectorAll('.panel-header[data-toggle="panel"]').forEach(header => {
+            header.addEventListener('click', (e) => {
+                const panel = header.closest('.panel');
+                if (panel) {
+                    panel.classList.toggle('collapsed');
+                }
+            });
+        });
     }
 
     toggleSidebar() {
@@ -74,9 +84,8 @@ class TradingApp {
         const toggle = document.getElementById('sidebar-toggle');
         if (sidebar) {
             sidebar.classList.toggle('collapsed');
-            // Update toggle icon direction
             if (toggle) {
-                toggle.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+                toggle.textContent = sidebar.classList.contains('collapsed') ? '‹' : '›';
             }
             // Trigger chart resize after transition
             setTimeout(() => {
@@ -235,8 +244,13 @@ class TradingApp {
 
         if (pnlEl) {
             const pnl = parseFloat(account.unrealized_pnl);
-            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
-            pnlEl.className = `account-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            if (pnl === 0) {
+                pnlEl.textContent = '--';
+                pnlEl.className = 'account-value';
+            } else {
+                pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                pnlEl.className = `account-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            }
         }
 
         if (marginEl) {
@@ -547,14 +561,11 @@ class TradingApp {
 
     updateConnectionStatus(connected) {
         this.isConnected = connected;
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
+        const connectionStatus = document.getElementById('connection-status');
 
-        if (statusDot) {
-            statusDot.className = `status-dot ${connected ? 'connected' : ''}`;
-        }
-        if (statusText) {
-            statusText.textContent = connected ? 'Connected' : 'Disconnected';
+        if (connectionStatus) {
+            connectionStatus.className = `connection-status ${connected ? 'connected' : ''}`;
+            connectionStatus.title = connected ? 'Connected' : 'Disconnected';
         }
     }
 
