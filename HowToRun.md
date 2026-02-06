@@ -12,7 +12,7 @@ uvicorn rateservice.main:app --port 8000
 # Terminal 2: Start TradingSystem
 cd ~/Code/TradingSystem
 source ~/.pyenv/versions/tradingsystem/bin/activate
-uvicorn tradingsystem.main:app --port 8001
+uvicorn tradingsystem.main:app --port 8002
 ```
 
 ### Auto-Start on Boot (macOS)
@@ -53,30 +53,30 @@ tail -f ~/Library/Logs/tradingsystem.log
 **Execute a trade:**
 ```bash
 # Buy 10,000 EUR/USD
-curl -X POST http://localhost:8001/orders/trade \
+curl -X POST http://localhost:8002/orders/trade \
   -H "Content-Type: application/json" \
   -d '{"instrument": "EUR_USD", "side": "BUY", "quantity": "10000"}'
 ```
 
 **Check positions:**
 ```bash
-curl http://localhost:8001/positions/open
+curl http://localhost:8002/positions/open
 ```
 
 **Close a position:**
 ```bash
-curl -X POST http://localhost:8001/positions/{position_id}/close-at-market
+curl -X POST http://localhost:8002/positions/{position_id}/close-at-market
 ```
 
 **View account summary:**
 ```bash
-curl http://localhost:8001/positions/account/summary
+curl http://localhost:8002/positions/account/summary
 ```
 
 ## 3. Run a Backtest
 
 ```bash
-curl -X POST http://localhost:8001/backtest \
+curl -X POST http://localhost:8002/backtest \
   -H "Content-Type: application/json" \
   -d '{
     "strategy_id": "ma_crossover",
@@ -88,15 +88,22 @@ curl -X POST http://localhost:8001/backtest \
   }'
 ```
 
-## 4. Monitor via Dashboard
+## 4. Web Dashboard
 
-Open in browser: **http://localhost:8001/dashboard/**
+Open in browser: **http://localhost:8002/ui**
+
+Features:
+- TradingView candlestick charts
+- Real-time price updates via WebSocket
+- Order placement with risk checks
+- Open positions with live P&L
+- Signal monitoring
 
 Or use API:
 ```bash
-curl http://localhost:8001/dashboard/portfolio
-curl http://localhost:8001/dashboard/performance
-curl http://localhost:8001/dashboard/trades
+curl http://localhost:8002/dashboard/portfolio
+curl http://localhost:8002/dashboard/performance
+curl http://localhost:8002/dashboard/trades
 ```
 
 ## 5. Live Trading (When Ready)
@@ -108,19 +115,19 @@ LIVE_TRADING_ENABLED=true
 
 **Check risk status:**
 ```bash
-curl http://localhost:8001/live/status
+curl http://localhost:8002/live/status
 ```
 
 **Execute live trade:**
 ```bash
-curl -X POST http://localhost:8001/live/trade \
+curl -X POST http://localhost:8002/live/trade \
   -H "Content-Type: application/json" \
   -d '{"instrument": "EUR_USD", "side": "BUY", "quantity": "100"}'
 ```
 
 **Emergency stop:**
 ```bash
-curl -X POST http://localhost:8001/live/emergency-close
+curl -X POST http://localhost:8002/live/emergency-close
 ```
 
 ## 6. System Monitoring
@@ -129,12 +136,12 @@ The system includes comprehensive internal monitoring with health checks and SMS
 
 **Check monitoring status:**
 ```bash
-curl http://localhost:8001/dashboard/monitoring
+curl http://localhost:8002/dashboard/monitoring
 ```
 
 **Trigger immediate health check:**
 ```bash
-curl -X POST http://localhost:8001/dashboard/monitoring/check
+curl -X POST http://localhost:8002/dashboard/monitoring/check
 ```
 
 ### Components Monitored
@@ -173,6 +180,56 @@ LOG_MONITOR_WARNING_THRESHOLD=50  # Warnings before alert
 LOG_MONITOR_WINDOW_SECONDS=300    # Sliding window (5 min)
 ```
 
+## 6.5 Real-Time Rates
+
+The system provides real-time price updates via WebSocket streaming.
+
+### WebSocket Connection
+
+Connect to `ws://localhost:8002/api/rates/ws` for real-time rate updates.
+
+Message format:
+```json
+{
+  "type": "rates",
+  "timestamp": "2026-02-05T10:30:00Z",
+  "data": [
+    {
+      "pair": "EUR_USD",
+      "bid": "1.08500",
+      "ask": "1.08520",
+      "mid": "1.08510",
+      "spread": "0.00020",
+      "age_seconds": 0.5,
+      "tradeable": true
+    }
+  ]
+}
+```
+
+### HTTP Fallback
+
+If WebSocket is unavailable, poll the REST API:
+```bash
+# Get current rate for a pair
+curl http://localhost:8002/api/rates/current/EUR_USD
+
+# Get all current rates
+curl http://localhost:8002/api/rates/current
+
+# Check WebSocket status
+curl http://localhost:8002/api/rates/ws/status
+```
+
+### Configuration
+
+```bash
+WS_ENABLED=true              # Enable WebSocket endpoints (default: true)
+WS_RATE_POLL_INTERVAL_MS=250 # Polling interval in ms (default: 250)
+```
+
+The 250ms default matches OANDA's maximum update frequency (4 prices/second per instrument).
+
 ## 7. Available Strategies
 
 | Strategy | Description |
@@ -182,12 +239,12 @@ LOG_MONITOR_WINDOW_SECONDS=300    # Sliding window (5 min)
 
 List strategies:
 ```bash
-curl http://localhost:8001/strategies
+curl http://localhost:8002/strategies
 ```
 
 ## 8. Key API Docs
 
-Interactive docs: **http://localhost:8001/docs**
+Interactive docs: **http://localhost:8002/docs**
 
 ## 9. OANDA Data Notes
 

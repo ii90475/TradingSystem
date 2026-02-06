@@ -7,6 +7,8 @@ Automated trading system with technical analysis, backtesting, and strategy exec
 
 ## Features
 
+- **Web Dashboard** with TradingView charts and real-time pricing
+- **WebSocket streaming** for sub-second price updates (250ms default)
 - Charts with 150+ technical indicators via pandas-ta
 - Custom indicator support
 - Strategy framework with Python code
@@ -35,12 +37,25 @@ tradingsystem
 python -m tradingsystem.main
 ```
 
-The API runs on port 8001 (RateService runs on 8000).
+The API runs on port 8002 (RateService runs on 8000).
+
+## Web Dashboard
+
+Access the trading dashboard at: **http://localhost:8002/ui**
+
+Features:
+- TradingView Lightweight Charts with candlestick data
+- Real-time price updates via WebSocket (250ms refresh)
+- Order placement with risk checks
+- Open positions with P&L tracking
+- Signal monitoring
 
 ## API Endpoints
 
 - `GET /health` - Health check
+- `GET /ui` - Trading dashboard
 - `GET /docs` - OpenAPI documentation
+- `WS /api/rates/ws` - Real-time rate streaming
 
 ## Architecture
 
@@ -160,9 +175,11 @@ safety check
 
 ## Testing
 
-The project includes comprehensive test coverage (95%) with 782 tests covering all critical trading functionality.
+The project includes comprehensive test coverage (95%) with 805 tests covering all critical trading functionality.
 
 > **Coverage Milestone (v0.20.0):** All testable code paths are now covered. Remaining gaps are in infrastructure code requiring live database connections or application entrypoint code.
+>
+> **Latest (v0.34.0):** Added WebSocket streaming tests, real-time rates API tests.
 
 ```bash
 # Run all tests
@@ -179,7 +196,7 @@ pytest tests/api/            # API endpoint tests
 
 ### Test Coverage Summary
 
-**Overall: 782 tests | 95% coverage**
+**Overall: 805 tests | 95% coverage**
 
 #### Core Services
 
@@ -215,6 +232,7 @@ pytest tests/api/            # API endpoint tests
 | Dashboard | 100% | 19 | Portfolio, performance, alerts |
 | Charts | 100% | 17 | Chart management, candles |
 | Indicators | 100% | 17 | Indicator calculation |
+| Rates | 100% | 23 | Real-time rates, WebSocket streaming |
 
 #### Strategies & Indicators
 
