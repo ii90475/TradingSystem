@@ -229,12 +229,14 @@ class TestGetChartByInstrument:
             mock_service.get_chart_by_instrument_period.assert_called_once_with("EUR_USD", "M5")
 
     @pytest.mark.asyncio
-    async def test_raises_404_when_not_found(self):
-        """Should raise 404 when chart not found."""
+    async def test_auto_creates_chart_when_not_found(self, sample_chart):
+        """Should auto-create chart when not found."""
         with patch("tradingsystem.api.charts.chart_service") as mock_service:
             mock_service.get_chart_by_instrument_period = AsyncMock(return_value=None)
+            mock_service.create_chart = AsyncMock(return_value=sample_chart)
 
-            with pytest.raises(HTTPException) as exc_info:
-                await get_chart_by_instrument("UNKNOWN")
+            result = await get_chart_by_instrument("EUR_USD", period="1h")
 
-            assert exc_info.value.status_code == 404
+            # Should have created the chart
+            mock_service.create_chart.assert_called_once()
+            assert result.instrument == "EUR_USD"

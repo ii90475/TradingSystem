@@ -67,8 +67,15 @@ async def get_chart_by_instrument(
     instrument: str,
     period: str = Query("M1", description="Candle period"),
 ) -> Chart:
-    """Get a chart by instrument and period."""
+    """
+    Get a chart by instrument and period.
+
+    If the chart doesn't exist, it will be auto-created.
+    """
     chart = await chart_service.get_chart_by_instrument_period(instrument, period)
     if not chart:
-        raise HTTPException(status_code=404, detail="Chart not found")
+        # Auto-create the chart if it doesn't exist
+        chart = await chart_service.create_chart(
+            ChartCreate(instrument=instrument, period=period)
+        )
     return chart

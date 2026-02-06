@@ -138,6 +138,11 @@ class TradingApp {
             if (rate) {
                 this.lastRate = rate;
                 this.updateRateDisplay(rate);
+
+                // Update chart's current price line
+                if (this.chart && rate.mid) {
+                    this.chart.updateCurrentPrice(rate.mid);
+                }
             }
         } else if (message.type === 'error') {
             console.error('WebSocket rate error:', message.message);
@@ -234,6 +239,11 @@ class TradingApp {
             const rate = await api.getCurrentRate(this.currentInstrument);
             this.lastRate = rate;
             this.updateRateDisplay(rate);
+
+            // Update chart's current price line
+            if (this.chart && rate.mid) {
+                this.chart.updateCurrentPrice(rate.mid);
+            }
         } catch (error) {
             console.error('Failed to load current rate:', error);
         }
@@ -242,18 +252,35 @@ class TradingApp {
     updateRateDisplay(rate) {
         const priceEl = document.getElementById('chart-price');
         const changeEl = document.getElementById('chart-change');
+        const bidEl = document.getElementById('chart-bid');
+        const askEl = document.getElementById('chart-ask');
+        const spreadEl = document.getElementById('chart-spread');
 
+        // Update main price (mid)
         if (priceEl && rate.mid) {
             priceEl.textContent = rate.mid;
         }
 
-        // Show freshness indicator in change element when rate is stale
-        if (changeEl && rate.age_seconds !== undefined) {
-            if (rate.age_seconds > 30) {
-                changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s old)`;
+        // Update bid/ask if elements exist
+        if (bidEl && rate.bid) {
+            bidEl.textContent = rate.bid;
+        }
+        if (askEl && rate.ask) {
+            askEl.textContent = rate.ask;
+        }
+        if (spreadEl && rate.spread) {
+            spreadEl.textContent = rate.spread;
+        }
+
+        // Show freshness indicator or spread info
+        if (changeEl) {
+            if (rate.age_seconds !== undefined && rate.age_seconds > 30) {
+                changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s stale)`;
                 changeEl.className = 'chart-change negative';
-            } else if (rate.age_seconds > 10) {
-                changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s old)`;
+            } else if (rate.spread) {
+                // Show spread when data is fresh
+                const spreadPips = (parseFloat(rate.spread) * 10000).toFixed(1);
+                changeEl.textContent = `Spread: ${spreadPips} pips`;
                 changeEl.className = 'chart-change';
             }
         }

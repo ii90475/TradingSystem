@@ -10,8 +10,12 @@ class ChartManager {
         this.candlestickSeries = null;
         this.volumeSeries = null;
         this.smaSeries = null;
+        this.priceLine = null;
         this.currentInstrument = null;
         this.currentPeriod = 'H1';
+        this.lastPrice = null;
+        this.previousPrice = null;
+        this.priceLineResetTimeout = null;
     }
 
     init() {
@@ -46,7 +50,7 @@ class ChartManager {
             },
         });
 
-        // Add candlestick series with forex price format (4 decimal places)
+        // Add candlestick series with forex price format (5 decimal places)
         this.candlestickSeries = this.chart.addCandlestickSeries({
             upColor: '#3fb950',
             downColor: '#f85149',
@@ -54,10 +58,12 @@ class ChartManager {
             borderUpColor: '#3fb950',
             wickDownColor: '#f85149',
             wickUpColor: '#3fb950',
+            priceLineVisible: false,  // Disable default last-value line (we use live WebSocket price)
+            lastValueVisible: false,  // Hide last value label on Y-axis
             priceFormat: {
                 type: 'price',
-                precision: 4,
-                minMove: 0.0001,
+                precision: 5,
+                minMove: 0.00001,
             },
         });
 
@@ -74,7 +80,7 @@ class ChartManager {
             },
         });
 
-        // Add SMA series with forex price format
+        // Add SMA series with forex price format (5 decimal places)
         this.smaSeries = this.chart.addLineSeries({
             color: '#58a6ff',
             lineWidth: 2,
@@ -82,8 +88,8 @@ class ChartManager {
             lastValueVisible: false,
             priceFormat: {
                 type: 'price',
-                precision: 4,
-                minMove: 0.0001,
+                precision: 5,
+                minMove: 0.00001,
             },
         });
 
@@ -268,7 +274,92 @@ class ChartManager {
         this.updatePriceDisplay(data);
     }
 
+    /**
+     * Update the current price line on the chart from real-time rate data.
+     * This creates a horizontal price line showing the current bid/ask/mid.
+     * Color changes based on price movement:
+     * - Green (#3fb950) when price moves up
+     * - Red (#f85149) when price moves down
+     * - Blue (#58a6ff) when no change for 1 second
+     */
+    updateCurrentPrice(price) {
+        if (!this.candlestickSeries) return;
+
+        const priceValue = parseFloat(price);
+        if (isNaN(priceValue)) return;
+
+        // Determine color based on price movement
+        let color = '#58a6ff'; // Default blue
+        if (this.lastPrice !== null) {
+            if (priceValue > this.lastPrice) {
+                color = '#3fb950'; // Green - price up
+            } else if (priceValue < this.lastPrice) {
+                color = '#f85149'; // Red - price down
+            }
+        }
+
+        this.previousPrice = this.lastPrice;
+        this.lastPrice = priceValue;
+
+        // Remove existing price line if any
+        if (this.priceLine) {
+            this.candlestickSeries.removePriceLine(this.priceLine);
+        }
+
+        // Create new price line at current price
+        this.priceLine = this.candlestickSeries.createPriceLine({
+            price: priceValue,
+            color: color,
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+        });
+
+        // Clear any existing reset timeout
+        if (this.priceLineResetTimeout) {
+            clearTimeout(this.priceLineResetTimeout);
+        }
+
+        // If color changed (not blue), set timeout to revert to blue after 1 second
+        if (color !== '#58a6ff') {
+            this.priceLineResetTimeout = setTimeout(() => {
+                this.resetPriceLineColor();
+            }, 1000);
+        }
+    }
+
+    /**
+     * Reset price line to neutral blue color.
+     */
+    resetPriceLineColor() {
+        if (!this.candlestickSeries || this.lastPrice === null) return;
+
+        // Remove existing price line
+        if (this.priceLine) {
+            this.candlestickSeries.removePriceLine(this.priceLine);
+        }
+
+        // Create new price line with blue color
+        this.priceLine = this.candlestickSeries.createPriceLine({
+            price: this.lastPrice,
+            color: '#58a6ff',
+            lineWidth: 1,
+            lineStyle: LightweightCharts.LineStyle.Dashed,
+            axisLabelVisible: true,
+        });
+    }
+
+    /**
+     * Get the current live price.
+     */
+    getCurrentPrice() {
+        return this.lastPrice;
+    }
+
     destroy() {
+        if (this.priceLineResetTimeout) {
+            clearTimeout(this.priceLineResetTimeout);
+        }
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
         }
