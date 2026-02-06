@@ -24,10 +24,12 @@ Both services can be configured to start automatically on boot using launchd.
 # Copy plist files to LaunchAgents (if not already installed)
 cp deploy/com.rateservice.app.plist ~/Library/LaunchAgents/
 cp deploy/com.tradingsystem.app.plist ~/Library/LaunchAgents/
+cp deploy/com.rateservice.watchdog.plist ~/Library/LaunchAgents/
 
 # Load the services
 launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
 launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+launchctl load ~/Library/LaunchAgents/com.rateservice.watchdog.plist
 ```
 
 **Manage services:**
@@ -38,15 +40,26 @@ launchctl list | grep -E "(rateservice|tradingsystem)"
 # Stop services
 launchctl unload ~/Library/LaunchAgents/com.rateservice.app.plist
 launchctl unload ~/Library/LaunchAgents/com.tradingsystem.app.plist
+launchctl unload ~/Library/LaunchAgents/com.rateservice.watchdog.plist
 
 # Start services
 launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
 launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+launchctl load ~/Library/LaunchAgents/com.rateservice.watchdog.plist
 
 # View logs
 tail -f ~/Library/Logs/rateservice.log
 tail -f ~/Library/Logs/tradingsystem.log
+tail -f ~/Library/Logs/rateservice-watchdog.log
 ```
+
+### RateService Watchdog
+
+The watchdog runs every 5 minutes and:
+- Checks if RateService is responding
+- Restarts the service if unhealthy
+- Detects data gaps and triggers automatic backfill
+- Logs all actions to `~/Library/Logs/rateservice-watchdog.log`
 
 ## 2. Paper Trading (Safe Testing)
 

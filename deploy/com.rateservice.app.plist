@@ -31,8 +31,26 @@
     <key>RunAtLoad</key>
     <true/>
 
+    <!-- Restart on any exit (crash, signal, or normal exit) -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <!-- Minimum seconds between restarts (prevents rapid restart loops) -->
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <!-- Process priority (0 = normal, negative = higher priority) -->
+    <key>Nice</key>
+    <integer>-5</integer>
+
+    <!-- Restart if process uses too much CPU (optional safety) -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
 
     <key>StandardOutPath</key>
     <string>/Users/jamesconsole/Library/Logs/rateservice.log</string>
