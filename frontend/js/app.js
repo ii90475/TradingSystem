@@ -61,6 +61,32 @@ class TradingApp {
         if (orderForm) {
             orderForm.addEventListener('submit', (e) => this.handleOrderSubmit(e));
         }
+
+        // Sidebar toggle
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => this.toggleSidebar());
+        }
+    }
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebar-toggle');
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            // Update toggle icon direction
+            if (toggle) {
+                toggle.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+            }
+            // Trigger chart resize after transition
+            setTimeout(() => {
+                if (this.chart && this.chart.chart) {
+                    this.chart.chart.applyOptions({
+                        width: this.chart.container.clientWidth,
+                    });
+                }
+            }, 350);
+        }
     }
 
     async loadInitialData() {
@@ -280,7 +306,7 @@ class TradingApp {
             } else if (rate.spread) {
                 // Show spread when data is fresh
                 const spreadPips = (parseFloat(rate.spread) * 10000).toFixed(1);
-                changeEl.textContent = `Spread: ${spreadPips} pips`;
+                changeEl.innerHTML = `<span class="spread-icon">↔</span> ${spreadPips}`;
                 changeEl.className = 'chart-change';
             }
         }

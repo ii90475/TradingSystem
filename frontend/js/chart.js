@@ -16,6 +16,7 @@ class ChartManager {
         this.lastPrice = null;
         this.previousPrice = null;
         this.priceLineResetTimeout = null;
+        this.lastCandleData = null;
     }
 
     init() {
@@ -104,44 +105,36 @@ class ChartManager {
         });
         this.resizeObserver.observe(this.container);
 
-        // Subscribe to crosshair move for price display
+        // Subscribe to crosshair move for OHLC display (not main price)
         this.chart.subscribeCrosshairMove(this.handleCrosshairMove.bind(this));
     }
 
     handleCrosshairMove(param) {
-        if (!param.time || !param.seriesData) return;
+        // When cursor leaves chart, show last candle's OHLC
+        if (!param.time || !param.seriesData) {
+            if (this.lastCandleData) {
+                this.updateOHLCDisplay(this.lastCandleData);
+            }
+            return;
+        }
 
+        // When cursor is over chart, show hovered candle's OHLC
         const candleData = param.seriesData.get(this.candlestickSeries);
         if (candleData) {
-            this.updatePriceDisplay(candleData);
+            this.updateOHLCDisplay(candleData);
         }
     }
 
-    updatePriceDisplay(data) {
-        const priceEl = document.getElementById('chart-price');
+    updateOHLCDisplay(data) {
         const openEl = document.getElementById('chart-open');
         const highEl = document.getElementById('chart-high');
         const lowEl = document.getElementById('chart-low');
         const closeEl = document.getElementById('chart-close');
-        const changeEl = document.getElementById('chart-change');
 
-        if (priceEl && data.close) {
-            priceEl.textContent = data.close.toFixed(5);
-        }
-
-        // Update OHLC values
         if (openEl && data.open) openEl.textContent = data.open.toFixed(5);
         if (highEl && data.high) highEl.textContent = data.high.toFixed(5);
         if (lowEl && data.low) lowEl.textContent = data.low.toFixed(5);
         if (closeEl && data.close) closeEl.textContent = data.close.toFixed(5);
-
-        if (changeEl && data.open && data.close) {
-            const change = data.close - data.open;
-            const changePct = (change / data.open) * 100;
-            const sign = change >= 0 ? '+' : '';
-            changeEl.textContent = `${sign}${change.toFixed(5)} (${sign}${changePct.toFixed(2)}%)`;
-            changeEl.className = `chart-change ${change >= 0 ? 'positive' : 'negative'}`;
-        }
     }
 
     async loadData(instrument, period = 'M5') {
@@ -203,10 +196,10 @@ class ChartManager {
         // Fit content
         this.chart.timeScale().fitContent();
 
-        // Update price display with last candle
+        // Store last candle for OHLC display when cursor is outside chart
         if (candleData.length > 0) {
-            const lastCandle = candleData[candleData.length - 1];
-            this.updatePriceDisplay(lastCandle);
+            this.lastCandleData = candleData[candleData.length - 1];
+            this.updateOHLCDisplay(this.lastCandleData);
         }
     }
 
@@ -271,7 +264,6 @@ class ChartManager {
         };
 
         this.candlestickSeries.update(data);
-        this.updatePriceDisplay(data);
     }
 
     /**
