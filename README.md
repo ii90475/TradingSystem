@@ -179,7 +179,9 @@ The project includes comprehensive test coverage (95%) with 805 tests covering a
 
 > **Coverage Milestone (v0.20.0):** All testable code paths are now covered. Remaining gaps are in infrastructure code requiring live database connections or application entrypoint code.
 >
-> **Latest (v0.34.0):** Added WebSocket streaming tests, real-time rates API tests.
+> **v0.34.0:** Added WebSocket streaming tests, real-time rates API tests.
+>
+> **v0.40.1 (Phase 10.1):** Added 6 new built-in trading strategies with full test coverage.
 
 ```bash
 # Run all tests
@@ -196,7 +198,7 @@ pytest tests/api/            # API endpoint tests
 
 ### Test Coverage Summary
 
-**Overall: 805 tests | 95% coverage**
+**Overall: 961 tests | 93% coverage**
 
 #### Core Services
 
@@ -241,6 +243,12 @@ pytest tests/api/            # API endpoint tests
 | Strategy Registry | 84% | 32 | Strategy registration, discovery |
 | MA Crossover | 98% | 26 | Moving average crossover strategy |
 | RSI Reversal | 100% | 26 | RSI mean-reversion strategy |
+| Bollinger Breakout | 87% | 26 | Bollinger Band mean-reversion strategy |
+| MACD Divergence | 90% | 24 | MACD divergence momentum strategy |
+| Ichimoku Cloud | 89% | 26 | Ichimoku trend-following strategy |
+| Support/Resistance | 77% | 24 | Price action breakout strategy |
+| Multi-Timeframe | 94% | 26 | Multi-timeframe trend alignment strategy |
+| ATR Trailing Stop | 96% | 30 | ATR-based trailing stop exit strategy |
 | Backtest Engine | 98% | 32 | Position tracking, metrics |
 | pandas-ta Wrapper | 93% | 22 | Technical indicator integration |
 
@@ -255,7 +263,7 @@ pytest tests/api/            # API endpoint tests
 
 #### Coverage Notes
 
-The 95% coverage target represents complete testing of all business logic and API endpoints. The remaining 5% consists of:
+The 93% coverage target represents complete testing of all business logic and API endpoints. The remaining 7% consists of:
 
 - **Database connection pool** - Requires live TimescaleDB instance
 - **Application entrypoint** - FastAPI server startup/shutdown lifecycle
@@ -263,3 +271,12 @@ The 95% coverage target represents complete testing of all business logic and AP
 - **Strategy registry file discovery** - Filesystem-dependent code paths
 
 These are infrastructure concerns that are validated through integration testing and production monitoring rather than unit tests.
+
+## Version History
+
+| Version | Phase | Description |
+|---------|-------|-------------|
+| v0.40.1 | Phase 10.1 | Added 6 built-in strategies: Bollinger Breakout, MACD Divergence, Ichimoku Cloud, Support/Resistance, Multi-Timeframe, ATR Trailing Stop |
+| v0.37.0 | - | Previous stable release |
+| v0.34.0 | - | WebSocket streaming, real-time rates API |
+| v0.20.0 | - | Coverage milestone (95% coverage achieved) |
