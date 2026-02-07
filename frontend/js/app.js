@@ -312,9 +312,14 @@ class TradingApp {
             spreadEl.textContent = rate.spread;
         }
 
-        // Show freshness indicator or spread info
+        // Show market status, freshness indicator, or spread info
         if (changeEl) {
-            if (rate.age_seconds !== undefined && rate.age_seconds > 30) {
+            if (rate.tradeable === false) {
+                // Market is closed
+                changeEl.textContent = 'Market Closed';
+                changeEl.className = 'chart-change muted';
+            } else if (rate.age_seconds !== undefined && rate.age_seconds > 30) {
+                // Market open but data is stale
                 changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s stale)`;
                 changeEl.className = 'chart-change negative';
             } else if (rate.spread) {

@@ -194,6 +194,7 @@ body {
 
 .chart-change.positive { color: var(--accent-green); }
 .chart-change.negative { color: var(--accent-red); }
+.chart-change.muted { color: var(--text-secondary); }
 
 .spread-icon {
     font-size: 18px;
