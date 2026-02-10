@@ -19,6 +19,14 @@ class TradingApp {
         this.wsReconnectAttempts = 0;
         this.wsMaxReconnectAttempts = 10;
         this.wsReconnectDelay = 1000;
+        // Indicator state
+        this.availableIndicators = [];
+        this.activeIndicators = [];
+        this.maxIndicators = 10;
+        this.indicatorColors = [
+            '#58a6ff', '#f0883e', '#a371f7', '#3fb950', '#f85149',
+            '#db61a2', '#79c0ff', '#d29922', '#8b949e', '#7ee787'
+        ];
     }
 
     async init() {
@@ -77,6 +85,18 @@ class TradingApp {
                 }
             });
         });
+
+        // Indicator add button
+        const addIndicatorBtn = document.getElementById('add-indicator-btn');
+        if (addIndicatorBtn) {
+            addIndicatorBtn.addEventListener('click', () => this.addSelectedIndicator());
+        }
+
+        // Indicator select change
+        const indicatorSelect = document.getElementById('indicator-select');
+        if (indicatorSelect) {
+            indicatorSelect.addEventListener('change', () => this.updateAddButtonState());
+        }
     }
 
     toggleSidebar() {
@@ -114,6 +134,9 @@ class TradingApp {
                 this.loadPositions(),
                 this.loadSignals(),
             ]);
+
+            // Load indicators in background (non-blocking)
+            this.loadAvailableIndicators();
 
             // Connect to WebSocket for real-time rates
             this.connectRatesWebSocket();
@@ -289,6 +312,235 @@ class TradingApp {
         }
     }
 
+    // ==================== Indicator Methods ====================
+
+    async loadAvailableIndicators() {
+        try {
+            const data = await api.getAvailableIndicators();
+
+            // Limit to most common/useful indicators for performance
+            const commonIndicators = new Set([
+                // Overlay (on price)
+                'sma', 'ema', 'wma', 'bbands', 'vwap', 'kc', 'dema', 'tema',
+                'ichimoku', 'supertrend', 'psar',
+                // Pane (below chart)
+                'rsi', 'macd', 'stoch', 'stochrsi', 'cci', 'mfi', 'willr',
+                'atr', 'adx', 'aroon', 'ao', 'obv', 'cmf', 'mom', 'roc',
+            ]);
+
+            // Combine and filter to common indicators only
+            const allIndicators = [
+                ...(data.custom || []),
+                ...(data.pandas_ta || [])
+            ];
+
+            this.availableIndicators = allIndicators
+                .filter(i => commonIndicators.has(i.name.toLowerCase()))
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            this.populateIndicatorSelect();
+        } catch (error) {
+            console.error('Failed to load indicators:', error);
+        }
+    }
+
+    populateIndicatorSelect() {
+        const select = document.getElementById('indicator-select');
+        if (!select) return;
+
+        // Clear existing options except the first
+        select.innerHTML = '<option value="">Add indicator...</option>';
+
+        // Group indicators by type
+        const overlayIndicators = this.availableIndicators.filter(i => i.display_type === 'overlay');
+        const paneIndicators = this.availableIndicators.filter(i => i.display_type === 'pane');
+
+        // Add overlay group
+        if (overlayIndicators.length > 0) {
+            const overlayGroup = document.createElement('optgroup');
+            overlayGroup.label = 'Overlay (on price)';
+            overlayIndicators.forEach(ind => {
+                const option = document.createElement('option');
+                option.value = ind.name;
+                option.textContent = ind.name.toUpperCase();
+                option.dataset.displayType = 'overlay';
+                overlayGroup.appendChild(option);
+            });
+            select.appendChild(overlayGroup);
+        }
+
+        // Add pane group
+        if (paneIndicators.length > 0) {
+            const paneGroup = document.createElement('optgroup');
+            paneGroup.label = 'Pane (below chart)';
+            paneIndicators.forEach(ind => {
+                const option = document.createElement('option');
+                option.value = ind.name;
+                option.textContent = ind.name.toUpperCase();
+                option.dataset.displayType = 'pane';
+                paneGroup.appendChild(option);
+            });
+            select.appendChild(paneGroup);
+        }
+
+        this.updateAddButtonState();
+    }
+
+    updateAddButtonState() {
+        const select = document.getElementById('indicator-select');
+        const btn = document.getElementById('add-indicator-btn');
+        if (!select || !btn) return;
+
+        const canAdd = select.value && this.activeIndicators.length < this.maxIndicators;
+        btn.disabled = !canAdd;
+    }
+
+    async addSelectedIndicator() {
+        const select = document.getElementById('indicator-select');
+        if (!select || !select.value) return;
+
+        const indicatorName = select.value;
+        const selectedOption = select.options[select.selectedIndex];
+        const displayType = selectedOption.dataset.displayType || 'pane';
+
+        // Check if already added
+        if (this.activeIndicators.find(i => i.name === indicatorName)) {
+            this.showToast(`${indicatorName.toUpperCase()} already added`, 'warning');
+            return;
+        }
+
+        // Check max limit
+        if (this.activeIndicators.length >= this.maxIndicators) {
+            this.showToast(`Maximum ${this.maxIndicators} indicators allowed`, 'warning');
+            return;
+        }
+
+        // Get indicator info for default params
+        let params = {};
+        try {
+            const info = await api.getIndicatorInfo(indicatorName);
+            params = info.default_params || {};
+        } catch (error) {
+            console.log('Using empty params for', indicatorName);
+        }
+
+        // Assign color
+        const colorIndex = this.activeIndicators.length % this.indicatorColors.length;
+        const color = this.indicatorColors[colorIndex];
+
+        // Add to active list
+        const indicator = {
+            id: Date.now(),
+            name: indicatorName,
+            displayType: displayType,
+            params: params,
+            color: color,
+            visible: true,
+        };
+        this.activeIndicators.push(indicator);
+
+        // Reset select
+        select.value = '';
+        this.updateAddButtonState();
+        this.updateIndicatorCount();
+        this.renderActiveIndicators();
+
+        // Calculate and render on chart
+        await this.calculateAndRenderIndicator(indicator);
+    }
+
+    async removeIndicator(indicatorId) {
+        const index = this.activeIndicators.findIndex(i => i.id === indicatorId);
+        if (index === -1) return;
+
+        const indicator = this.activeIndicators[index];
+
+        // Remove from chart
+        if (this.chart) {
+            this.chart.removeIndicator(indicator.id);
+        }
+
+        // Remove from list
+        this.activeIndicators.splice(index, 1);
+        this.updateAddButtonState();
+        this.updateIndicatorCount();
+        this.renderActiveIndicators();
+    }
+
+    toggleIndicatorVisibility(indicatorId) {
+        const indicator = this.activeIndicators.find(i => i.id === indicatorId);
+        if (!indicator) return;
+
+        indicator.visible = !indicator.visible;
+        if (this.chart) {
+            this.chart.setIndicatorVisible(indicator.id, indicator.visible);
+        }
+        this.renderActiveIndicators();
+    }
+
+    updateIndicatorCount() {
+        const countEl = document.getElementById('indicator-count');
+        if (countEl) {
+            countEl.textContent = `${this.activeIndicators.length}/${this.maxIndicators}`;
+        }
+    }
+
+    renderActiveIndicators() {
+        const container = document.getElementById('active-indicators');
+        if (!container) return;
+
+        if (this.activeIndicators.length === 0) {
+            container.innerHTML = '<div class="empty-state">No indicators added</div>';
+            return;
+        }
+
+        container.innerHTML = this.activeIndicators.map(ind => `
+            <div class="indicator-item" data-id="${ind.id}">
+                <div class="indicator-item-info">
+                    <div class="indicator-item-color" style="background: ${ind.color}"></div>
+                    <span class="indicator-item-name">${ind.name.toUpperCase()}</span>
+                    <span class="indicator-item-type">${ind.displayType}</span>
+                </div>
+                <div class="indicator-item-actions">
+                    <button class="indicator-item-btn visibility"
+                            onclick="app.toggleIndicatorVisibility(${ind.id})"
+                            title="${ind.visible ? 'Hide' : 'Show'}">
+                        ${ind.visible ? '👁' : '👁‍🗨'}
+                    </button>
+                    <button class="indicator-item-btn remove"
+                            onclick="app.removeIndicator(${ind.id})"
+                            title="Remove">×</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async calculateAndRenderIndicator(indicator) {
+        try {
+            const result = await api.calculateIndicator(
+                this.currentInstrument,
+                this.currentPeriod,
+                indicator.name,
+                indicator.params,
+                500 // Get more candles for indicator calculation
+            );
+
+            if (this.chart && result.values && result.values.length > 0) {
+                this.chart.addIndicator(indicator, result.values);
+            }
+        } catch (error) {
+            console.error(`Failed to calculate indicator ${indicator.name}:`, error);
+            this.showToast(`Failed to load ${indicator.name.toUpperCase()}`, 'error');
+        }
+    }
+
+    async reloadAllIndicators() {
+        // Called when instrument or period changes
+        for (const indicator of this.activeIndicators) {
+            await this.calculateAndRenderIndicator(indicator);
+        }
+    }
+
     updateRateDisplay(rate) {
         const priceEl = document.getElementById('chart-price');
         const changeEl = document.getElementById('chart-change');
@@ -458,6 +710,9 @@ class TradingApp {
         // Update state and reload chart
         this.currentInstrument = instrument;
         this.loadChartData();
+
+        // Reload indicators for new instrument
+        this.reloadAllIndicators();
     }
 
     handleTimeframeChange(e) {
@@ -473,6 +728,9 @@ class TradingApp {
         // Update state and reload chart
         this.currentPeriod = period;
         this.loadChartData();
+
+        // Reload indicators for new period
+        this.reloadAllIndicators();
     }
 
     handleOrderTypeChange(e) {

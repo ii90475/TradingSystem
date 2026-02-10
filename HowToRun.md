@@ -364,6 +364,63 @@ curl http://localhost:8000/rates/GBP_USD/coverage
    launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
    ```
 
+### UI Slow or Unresponsive (Port Blocked)
+
+If http://localhost:8002/ui is slow or timing out:
+
+1. Check if something else is holding the port:
+   ```bash
+   lsof -i :8002
+   ```
+
+2. Kill zombie processes holding the port:
+   ```bash
+   # Find the PID from lsof output and kill it
+   kill -9 <PID>
+   ```
+
+3. Verify the correct port in the launchd plist:
+   ```bash
+   grep 8002 ~/Library/LaunchAgents/com.tradingsystem.app.plist
+   ```
+
+4. Restart the service:
+   ```bash
+   launchctl unload ~/Library/LaunchAgents/com.tradingsystem.app.plist
+   launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
+   ```
+
+5. Verify the server is responding:
+   ```bash
+   curl http://localhost:8002/health
+   ```
+
+### Historical Data Backfill
+
+If historical data is missing or has gaps, use the backfill script:
+
+```bash
+# Run historical backfill for all pairs (takes ~17 hours)
+nohup ./deploy/run-historical-backfill.sh > ~/Library/Logs/historical-backfill.log 2>&1 &
+
+# Monitor progress
+tail -f ~/Library/Logs/historical-backfill.log
+
+# Check data coverage for a specific pair
+curl http://localhost:8000/rates/EUR_USD/coverage
+
+# Manual backfill for a specific date range
+curl -X POST "http://localhost:8000/rates/GBP_USD/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"from_time": "2024-01-01T00:00:00Z", "to_time": "2024-12-31T00:00:00Z"}'
+```
+
+The enhanced watchdog (`deploy/rateservice-watchdog.sh`) runs every 5 minutes and:
+- Monitors ALL 10 currency pairs (not just EUR_USD)
+- Retries failed backfills up to 3 times
+- Skips weekends when market is closed
+- Automatically restarts RateService if unhealthy
+
 ## Recommended Workflow
 
 1. **Backtest** strategies on historical data

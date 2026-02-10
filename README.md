@@ -276,6 +276,7 @@ These are infrastructure concerns that are validated through integration testing
 
 | Version | Phase | Description |
 |---------|-------|-------------|
+| v0.41.1 | Phase 10.1 | **Data integrity patch**: Enhanced watchdog with retry logic, historical backfill automation, indicator UI panel |
 | v0.40.1 | Phase 10.1 | Added 6 built-in strategies: Bollinger Breakout, MACD Divergence, Ichimoku Cloud, Support/Resistance, Multi-Timeframe, ATR Trailing Stop |
 | v0.37.0 | - | Previous stable release |
 | v0.34.0 | - | WebSocket streaming, real-time rates API |

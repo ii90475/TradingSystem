@@ -19,6 +19,8 @@ class ChartManager {
         this.lastCandleData = null;
         // Store zoom state per instrument+period combination
         this.zoomStateByKey = new Map();
+        // Store indicator series by id
+        this.indicatorSeries = new Map();
     }
 
     init() {
@@ -466,6 +468,254 @@ class ChartManager {
      */
     getCurrentPrice() {
         return this.lastPrice;
+    }
+
+    // ==================== Indicator Methods ====================
+
+    /**
+     * Add an indicator to the chart.
+     * @param {Object} indicator - Indicator config with id, name, displayType, color, params
+     * @param {Array} values - Calculated indicator values
+     */
+    addIndicator(indicator, values) {
+        if (!this.chart || !values || values.length === 0) return;
+
+        // Remove existing series if present (for updates)
+        this.removeIndicator(indicator.id);
+
+        // Parse and format the data
+        const seriesData = this.formatIndicatorData(values, indicator.name);
+
+        if (indicator.displayType === 'overlay') {
+            // Add as overlay on price pane
+            this.addOverlayIndicator(indicator, seriesData);
+        } else {
+            // Add in separate pane below chart
+            this.addPaneIndicator(indicator, seriesData);
+        }
+    }
+
+    /**
+     * Format indicator values for TradingView chart.
+     */
+    formatIndicatorData(values, indicatorName) {
+        // Handle different value formats
+        const result = {
+            mainSeries: [],
+            additionalSeries: {},
+        };
+
+        values.forEach(v => {
+            const time = this.parseTime(v.time);
+
+            // Check if this is multi-value (like MACD with macd, signal, histogram)
+            const keys = Object.keys(v).filter(k => k !== 'time');
+
+            if (keys.length === 1 && keys[0] === 'value') {
+                // Simple single-value indicator
+                if (v.value !== null) {
+                    result.mainSeries.push({ time, value: v.value });
+                }
+            } else {
+                // Multi-value indicator (e.g., MACD, Bollinger Bands)
+                keys.forEach(key => {
+                    if (v[key] !== null) {
+                        if (!result.additionalSeries[key]) {
+                            result.additionalSeries[key] = [];
+                        }
+                        result.additionalSeries[key].push({ time, value: v[key] });
+                    }
+                });
+
+                // Use first series as main if no explicit 'value'
+                if (result.mainSeries.length === 0 && keys.length > 0) {
+                    const mainKey = keys[0];
+                    result.mainSeries = result.additionalSeries[mainKey] || [];
+                    delete result.additionalSeries[mainKey];
+                }
+            }
+        });
+
+        return result;
+    }
+
+    /**
+     * Add overlay indicator (on price pane).
+     */
+    addOverlayIndicator(indicator, seriesData) {
+        const series = this.chart.addLineSeries({
+            color: indicator.color,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            priceFormat: {
+                type: 'price',
+                precision: 5,
+                minMove: 0.00001,
+            },
+        });
+
+        series.setData(seriesData.mainSeries);
+
+        // Store series reference
+        this.indicatorSeries.set(indicator.id, {
+            type: 'overlay',
+            main: series,
+            additional: [],
+        });
+
+        // Add additional series for multi-value indicators (e.g., Bollinger Bands upper/lower)
+        const additionalColors = ['#a371f7', '#f0883e', '#3fb950'];
+        let colorIndex = 0;
+        for (const [key, data] of Object.entries(seriesData.additionalSeries)) {
+            const additionalSeries = this.chart.addLineSeries({
+                color: additionalColors[colorIndex % additionalColors.length],
+                lineWidth: 1,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                priceFormat: {
+                    type: 'price',
+                    precision: 5,
+                    minMove: 0.00001,
+                },
+            });
+            additionalSeries.setData(data);
+            this.indicatorSeries.get(indicator.id).additional.push(additionalSeries);
+            colorIndex++;
+        }
+    }
+
+    /**
+     * Add pane indicator (below chart in separate pane).
+     */
+    addPaneIndicator(indicator, seriesData) {
+        // Create a new price scale for this indicator
+        const priceScaleId = `indicator-${indicator.id}`;
+
+        const series = this.chart.addLineSeries({
+            color: indicator.color,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: priceScaleId,
+            priceFormat: {
+                type: 'price',
+                precision: 2,
+                minMove: 0.01,
+            },
+        });
+
+        // Configure the price scale for the indicator pane
+        series.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.8,
+                bottom: 0.02,
+            },
+            borderVisible: false,
+        });
+
+        series.setData(seriesData.mainSeries);
+
+        // Store series reference
+        this.indicatorSeries.set(indicator.id, {
+            type: 'pane',
+            main: series,
+            additional: [],
+            priceScaleId: priceScaleId,
+        });
+
+        // Add additional series for multi-value indicators (e.g., MACD signal line)
+        const additionalColors = ['#f0883e', '#a371f7', '#3fb950'];
+        let colorIndex = 0;
+        for (const [key, data] of Object.entries(seriesData.additionalSeries)) {
+            // Special handling for histogram-type series
+            let additionalSeries;
+            if (key.toLowerCase().includes('hist')) {
+                additionalSeries = this.chart.addHistogramSeries({
+                    color: indicator.color,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    priceScaleId: priceScaleId,
+                    priceFormat: {
+                        type: 'price',
+                        precision: 5,
+                        minMove: 0.00001,
+                    },
+                });
+                // Color histogram bars based on value
+                const histData = data.map(d => ({
+                    ...d,
+                    color: d.value >= 0 ? 'rgba(63, 185, 80, 0.7)' : 'rgba(248, 81, 73, 0.7)',
+                }));
+                additionalSeries.setData(histData);
+            } else {
+                additionalSeries = this.chart.addLineSeries({
+                    color: additionalColors[colorIndex % additionalColors.length],
+                    lineWidth: 1,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    priceScaleId: priceScaleId,
+                    priceFormat: {
+                        type: 'price',
+                        precision: 2,
+                        minMove: 0.01,
+                    },
+                });
+                additionalSeries.setData(data);
+            }
+            this.indicatorSeries.get(indicator.id).additional.push(additionalSeries);
+            colorIndex++;
+        }
+    }
+
+    /**
+     * Remove an indicator from the chart.
+     */
+    removeIndicator(indicatorId) {
+        const seriesInfo = this.indicatorSeries.get(indicatorId);
+        if (!seriesInfo) return;
+
+        try {
+            // Remove main series
+            if (seriesInfo.main) {
+                this.chart.removeSeries(seriesInfo.main);
+            }
+            // Remove additional series
+            for (const series of seriesInfo.additional) {
+                this.chart.removeSeries(series);
+            }
+        } catch (error) {
+            console.warn('Error removing indicator series:', error);
+        }
+
+        this.indicatorSeries.delete(indicatorId);
+    }
+
+    /**
+     * Set indicator visibility.
+     */
+    setIndicatorVisible(indicatorId, visible) {
+        const seriesInfo = this.indicatorSeries.get(indicatorId);
+        if (!seriesInfo) return;
+
+        const options = { visible };
+
+        if (seriesInfo.main) {
+            seriesInfo.main.applyOptions(options);
+        }
+        for (const series of seriesInfo.additional) {
+            series.applyOptions(options);
+        }
+    }
+
+    /**
+     * Clear all indicators from the chart.
+     */
+    clearAllIndicators() {
+        for (const indicatorId of this.indicatorSeries.keys()) {
+            this.removeIndicator(indicatorId);
+        }
     }
 
     destroy() {

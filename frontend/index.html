@@ -82,6 +82,27 @@
                     <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle sidebar">›</button>
                 </div>
             </div>
+            <!-- Indicators -->
+            <div class="panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
+                    <span>Indicators</span>
+                    <div class="panel-header-right">
+                        <span id="indicator-count" style="font-size: 11px;">0/10</span>
+                        <span class="panel-toggle">▼</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="indicator-selector">
+                        <select id="indicator-select" class="form-input">
+                            <option value="">Add indicator...</option>
+                        </select>
+                        <button type="button" id="add-indicator-btn" class="indicator-add-btn" title="Add indicator">+</button>
+                    </div>
+                    <div id="active-indicators" class="active-indicators">
+                        <div class="empty-state">No indicators added</div>
+                    </div>
+                </div>
+            </div>
             <!-- Order Form -->
             <div class="panel sidebar-content collapsible">
                 <div class="panel-header" data-toggle="panel">

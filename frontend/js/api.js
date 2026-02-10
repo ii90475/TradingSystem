@@ -179,6 +179,29 @@ class TradingAPI {
         return this.request(`/dashboard/performance?days=${days}`);
     }
 
+    // ==================== Indicators ====================
+
+    async getAvailableIndicators() {
+        return this.request('/indicators/available');
+    }
+
+    async getIndicatorInfo(name) {
+        return this.request(`/indicators/info/${name}`);
+    }
+
+    async calculateIndicator(instrument, period, indicatorType, params = {}, limit = 200) {
+        const queryParams = new URLSearchParams({
+            instrument,
+            period,
+            indicator_type: indicatorType,
+            limit: limit.toString(),
+        });
+        if (Object.keys(params).length > 0) {
+            queryParams.append('params', JSON.stringify(params));
+        }
+        return this.request(`/indicators/calculate?${queryParams}`);
+    }
+
     // ==================== Health ====================
 
     async getHealth() {

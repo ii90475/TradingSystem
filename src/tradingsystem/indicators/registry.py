@@ -7,6 +7,59 @@ from tradingsystem.indicators.base import BaseIndicator
 
 logger = logging.getLogger(__name__)
 
+# Display type mapping for indicators
+# "overlay" = displayed on the price chart (e.g., moving averages)
+# "pane" = displayed in a separate pane below (e.g., RSI, MACD)
+INDICATOR_DISPLAY_TYPES: dict[str, str] = {
+    # Overlay indicators (on price chart)
+    "sma": "overlay",
+    "ema": "overlay",
+    "wma": "overlay",
+    "dema": "overlay",
+    "tema": "overlay",
+    "trima": "overlay",
+    "kama": "overlay",
+    "vwap": "overlay",
+    "bbands": "overlay",
+    "kc": "overlay",  # Keltner Channel
+    "donchian": "overlay",
+    "ichimoku": "overlay",
+    "supertrend": "overlay",
+    "psar": "overlay",  # Parabolic SAR
+    "pivots": "overlay",
+    "hl2": "overlay",
+    "hlc3": "overlay",
+    "ohlc4": "overlay",
+    # Pane indicators (separate pane)
+    "rsi": "pane",
+    "macd": "pane",
+    "stoch": "pane",
+    "stochrsi": "pane",
+    "cci": "pane",
+    "mfi": "pane",
+    "willr": "pane",  # Williams %R
+    "roc": "pane",  # Rate of Change
+    "mom": "pane",  # Momentum
+    "atr": "pane",
+    "adx": "pane",
+    "aroon": "pane",
+    "ao": "pane",  # Awesome Oscillator
+    "bop": "pane",  # Balance of Power
+    "cmf": "pane",  # Chaikin Money Flow
+    "obv": "pane",  # On Balance Volume
+    "ad": "pane",  # Accumulation/Distribution
+    "volume": "pane",
+    "pvo": "pane",  # Percentage Volume Oscillator
+    "trix": "pane",
+    "uo": "pane",  # Ultimate Oscillator
+    "fisher": "pane",
+    "cmo": "pane",  # Chande Momentum Oscillator
+    # Custom indicators - default to pane
+    "custom_momentum": "pane",
+    "price_change": "pane",
+    "high_low_range": "pane",
+}
+
 
 class IndicatorRegistry:
     """
@@ -90,6 +143,9 @@ class IndicatorRegistry:
         """Get information about an indicator."""
         name_lower = name.lower()
 
+        # Determine display type (default to "pane" if unknown)
+        display_type = INDICATOR_DISPLAY_TYPES.get(name_lower, "pane")
+
         # Check custom indicators
         if name_lower in cls._indicators:
             indicator_cls = cls._indicators[name_lower]
@@ -99,6 +155,7 @@ class IndicatorRegistry:
                 "class": indicator_cls.__name__,
                 "description": indicator_cls.description,
                 "default_params": indicator_cls.default_params,
+                "display_type": display_type,
             }
 
         # Check pandas-ta indicators
@@ -108,6 +165,7 @@ class IndicatorRegistry:
                 "name": name_lower,
                 "type": "pandas_ta",
                 "description": info.get("description", ""),
+                "display_type": display_type,
             }
 
         return None

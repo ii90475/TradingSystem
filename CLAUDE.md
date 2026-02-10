@@ -1,5 +1,15 @@
 # TradingSystem - Claude Code Project Instructions
 
+## Commit Workflow
+
+Before committing changes, **discuss with the user** what needs to be captured:
+- Documentation updates (README, HowToRun, CLAUDE.md)
+- Configuration changes (plist files, .env examples)
+- Version/tag updates
+- Test coverage for new features
+
+Don't just commit - talk about what changes may need to accompany the code.
+
 ## Development Server
 
 When making changes to frontend files (HTML, CSS, JS) that require testing:
@@ -47,11 +57,21 @@ Server runs on **port 8002** (not 8000). Dashboard at http://localhost:8002/ui
 
 ### Sidebar
 - "Trading" header with toggle (›/‹) to collapse entire sidebar
-- Collapsible panels: New Order, Signals, Positions (click header to toggle)
+- Collapsible panels: Indicators, New Order, Signals, Positions (click header to toggle)
 - Panel toggle icon (▼) rotates when collapsed
+- Indicators panel: Add up to 10 indicators, select from ~25 common indicators
 
 ## Browser Caching
 
 Static CSS/JS files may be cached by the browser. After changes:
 1. Restart the server
 2. Hard refresh browser (bypasses cache)
+
+## Phase 10 Development
+
+See `phase10.md` for the full implementation plan. Priority order:
+1. **Phase 10.1:** UI Indicator Visualization (sidebar panel, overlay/pane rendering)
+2. **Phase 10.2:** Saved Strategy Configurations (StrategyInstance model, UI widget)
+3. **Phase 10.3:** Trade Visualization (arrows/triangles/dots on chart)
+4. **Phase 10.4:** Claude Indicator Creation (natural language → Python)
+5. **Phase 10.5:** Performance Dashboard (metrics, thresholds, alerts)
