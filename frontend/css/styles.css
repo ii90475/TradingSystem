@@ -350,33 +350,23 @@ body {
     margin-bottom: 12px;
 }
 
-.indicator-selector select {
-    flex: 1;
-}
-
-.indicator-add-btn {
-    width: 32px;
-    height: 32px;
-    background: var(--accent-blue);
-    border: none;
-    border-radius: 6px;
-    color: white;
-    font-size: 18px;
+#indicator-select {
+    width: 100%;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
 }
 
-.indicator-add-btn:hover {
-    background: #4dabff;
-}
-
-.indicator-add-btn:disabled {
-    background: var(--bg-tertiary);
+#indicator-select optgroup {
+    background: var(--bg-secondary);
     color: var(--text-secondary);
-    cursor: not-allowed;
+    font-weight: 600;
+    font-style: normal;
+    padding: 4px 0;
+}
+
+#indicator-select option {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 8px 12px;
 }
 
 .active-indicators {

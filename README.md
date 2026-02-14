@@ -276,11 +276,11 @@ These are infrastructure concerns that are validated through integration testing
 
 | Version | Phase | Description |
 |---------|-------|-------------|
+| v0.41.0 | Phase 10.1 | **Chart Session Persistence & Indicator UI**: API-backed session storage for chart state (instrument, period, indicators), localStorage cache fallback, indicator overlay fixes (BBands scale), auto-add indicators on select, CORS middleware |
 | v0.40.6 | - | **Tick validation**: Validates ticks before storage (outlier rejection, flash crash detection), plus chart-driven rolling stats API |
 | v0.40.5 | - | **Real-time gap detection**: In-process gap detector with circuit breaker, runs every minute to catch gaps within 60 seconds |
 | v0.40.4 | - | **Self-healing watchdog**: Auto-detects system reboots and performs deep 24h gap scan to ensure data continuity after restarts |
 | v0.40.3 | - | **Robust backfill system**: Production-grade gap repair with chunked processing, health checks, state tracking, and bulk mode API to prevent database crashes during heavy backfill operations |
-| v0.41.1 | Phase 10.1 | **Data integrity patch**: Enhanced watchdog with retry logic, historical backfill automation, indicator UI panel |
 | v0.40.1 | Phase 10.1 | Added 6 built-in strategies: Bollinger Breakout, MACD Divergence, Ichimoku Cloud, Support/Resistance, Multi-Timeframe, ATR Trailing Stop |
 | v0.37.0 | - | Previous stable release |
 | v0.34.0 | - | WebSocket streaming, real-time rates API |

@@ -27,6 +27,92 @@ class TradingApp {
             '#58a6ff', '#f0883e', '#a371f7', '#3fb950', '#f85149',
             '#db61a2', '#79c0ff', '#d29922', '#8b949e', '#7ee787'
         ];
+        // Restore saved session state
+        this.restoreSessionState();
+    }
+
+    // ==================== Session Persistence ====================
+
+    restoreSessionState() {
+        // First try localStorage for fast initial load (will be updated from API later)
+        try {
+            const saved = localStorage.getItem('tradingSystemSession');
+            if (saved) {
+                const state = JSON.parse(saved);
+                this.currentInstrument = state.instrument || 'EUR_USD';
+                this.currentPeriod = state.period || 'M5';
+                this.activeIndicators = state.indicators || [];
+                console.log('Restored session from cache:', this.currentInstrument, this.currentPeriod, this.activeIndicators.length, 'indicators');
+            }
+        } catch (e) {
+            console.warn('Failed to restore session from cache:', e);
+        }
+    }
+
+    async restoreSessionFromAPI() {
+        // Fetch from API (source of truth) and update local state
+        try {
+            const session = await api.getSession();
+            if (session) {
+                this.currentInstrument = session.instrument || 'EUR_USD';
+                this.currentPeriod = session.period || 'M5';
+                // Map API format to frontend format
+                this.activeIndicators = (session.indicators || []).map(ind => ({
+                    id: ind.id,
+                    name: ind.name,
+                    displayType: ind.display_type,
+                    params: ind.params || {},
+                    color: ind.color,
+                    visible: ind.visible !== false,
+                }));
+                console.log('Restored session from API:', this.currentInstrument, this.currentPeriod, this.activeIndicators.length, 'indicators');
+                // Cache to localStorage
+                this.cacheSessionToLocalStorage();
+                return true;
+            }
+        } catch (e) {
+            console.warn('Failed to restore session from API, using cache:', e);
+        }
+        return false;
+    }
+
+    cacheSessionToLocalStorage() {
+        try {
+            const state = {
+                instrument: this.currentInstrument,
+                period: this.currentPeriod,
+                indicators: this.activeIndicators,
+            };
+            localStorage.setItem('tradingSystemSession', JSON.stringify(state));
+        } catch (e) {
+            console.warn('Failed to cache session:', e);
+        }
+    }
+
+    async saveSessionState() {
+        // Save to API (source of truth)
+        try {
+            const sessionData = {
+                instrument: this.currentInstrument,
+                period: this.currentPeriod,
+                // Map frontend format to API format
+                indicators: this.activeIndicators.map(ind => ({
+                    id: ind.id,
+                    name: ind.name,
+                    display_type: ind.displayType,
+                    params: ind.params || {},
+                    color: ind.color,
+                    visible: ind.visible !== false,
+                })),
+            };
+            await api.saveSession(sessionData);
+            // Also cache to localStorage for fast reload
+            this.cacheSessionToLocalStorage();
+        } catch (e) {
+            console.warn('Failed to save session to API:', e);
+            // Still cache locally as fallback
+            this.cacheSessionToLocalStorage();
+        }
     }
 
     async init() {
@@ -35,6 +121,9 @@ class TradingApp {
         // Initialize chart
         this.chart = new ChartManager('chart');
         this.chart.init();
+
+        // Apply restored session state to UI
+        this.applySessionStateToUI();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -46,6 +135,22 @@ class TradingApp {
         this.startAutoRefresh();
 
         console.log('Dashboard initialized');
+    }
+
+    applySessionStateToUI() {
+        // Update instrument tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.instrument === this.currentInstrument);
+        });
+
+        // Update timeframe buttons
+        document.querySelectorAll('.tf-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === this.currentPeriod);
+        });
+
+        // Update indicator count
+        this.updateIndicatorCount();
+        this.renderActiveIndicators();
     }
 
     setupEventListeners() {
@@ -86,16 +191,10 @@ class TradingApp {
             });
         });
 
-        // Indicator add button
-        const addIndicatorBtn = document.getElementById('add-indicator-btn');
-        if (addIndicatorBtn) {
-            addIndicatorBtn.addEventListener('click', () => this.addSelectedIndicator());
-        }
-
-        // Indicator select change
+        // Indicator select - add on change (no + button needed)
         const indicatorSelect = document.getElementById('indicator-select');
         if (indicatorSelect) {
-            indicatorSelect.addEventListener('change', () => this.updateAddButtonState());
+            indicatorSelect.addEventListener('change', () => this.addSelectedIndicator());
         }
     }
 
@@ -127,6 +226,13 @@ class TradingApp {
             await api.getHealth();
             this.updateConnectionStatus(true);
 
+            // Restore session from API (source of truth)
+            const apiRestored = await this.restoreSessionFromAPI();
+            if (apiRestored) {
+                // Update UI with restored state
+                this.applySessionStateToUI();
+            }
+
             // Load data in parallel
             await Promise.all([
                 this.loadAccountData(),
@@ -137,6 +243,12 @@ class TradingApp {
 
             // Load indicators in background (non-blocking)
             this.loadAvailableIndicators();
+
+            // Restore saved indicators on chart
+            if (this.activeIndicators.length > 0) {
+                console.log('Restoring', this.activeIndicators.length, 'saved indicators');
+                await this.reloadAllIndicators();
+            }
 
             // Connect to WebSocket for real-time rates
             this.connectRatesWebSocket();
@@ -349,7 +461,7 @@ class TradingApp {
         if (!select) return;
 
         // Clear existing options except the first
-        select.innerHTML = '<option value="">Add indicator...</option>';
+        select.innerHTML = '<option value="">Select indicator...</option>';
 
         // Group indicators by type
         const overlayIndicators = this.availableIndicators.filter(i => i.display_type === 'overlay');
@@ -382,17 +494,6 @@ class TradingApp {
             });
             select.appendChild(paneGroup);
         }
-
-        this.updateAddButtonState();
-    }
-
-    updateAddButtonState() {
-        const select = document.getElementById('indicator-select');
-        const btn = document.getElementById('add-indicator-btn');
-        if (!select || !btn) return;
-
-        const canAdd = select.value && this.activeIndicators.length < this.maxIndicators;
-        btn.disabled = !canAdd;
     }
 
     async addSelectedIndicator() {
@@ -441,9 +542,9 @@ class TradingApp {
 
         // Reset select
         select.value = '';
-        this.updateAddButtonState();
         this.updateIndicatorCount();
         this.renderActiveIndicators();
+        this.saveSessionState();
 
         // Calculate and render on chart
         await this.calculateAndRenderIndicator(indicator);
@@ -462,9 +563,9 @@ class TradingApp {
 
         // Remove from list
         this.activeIndicators.splice(index, 1);
-        this.updateAddButtonState();
         this.updateIndicatorCount();
         this.renderActiveIndicators();
+        this.saveSessionState();
     }
 
     toggleIndicatorVisibility(indicatorId) {
@@ -517,6 +618,7 @@ class TradingApp {
 
     async calculateAndRenderIndicator(indicator) {
         try {
+            console.log(`Calculating indicator ${indicator.name} for ${this.currentInstrument}/${this.currentPeriod}`);
             const result = await api.calculateIndicator(
                 this.currentInstrument,
                 this.currentPeriod,
@@ -525,12 +627,13 @@ class TradingApp {
                 500 // Get more candles for indicator calculation
             );
 
+            console.log(`Indicator ${indicator.name} result:`, result.values?.length || 0, 'values');
             if (this.chart && result.values && result.values.length > 0) {
                 this.chart.addIndicator(indicator, result.values);
             }
         } catch (error) {
-            console.error(`Failed to calculate indicator ${indicator.name}:`, error);
-            this.showToast(`Failed to load ${indicator.name.toUpperCase()}`, 'error');
+            console.error(`Failed to calculate indicator ${indicator.name}:`, error.message, error);
+            this.showToast(`Failed to load ${indicator.name.toUpperCase()}: ${error.message}`, 'error');
         }
     }
 
@@ -709,6 +812,7 @@ class TradingApp {
 
         // Update state and reload chart
         this.currentInstrument = instrument;
+        this.saveSessionState();
         this.loadChartData();
 
         // Reload indicators for new instrument
@@ -727,6 +831,7 @@ class TradingApp {
 
         // Update state and reload chart
         this.currentPeriod = period;
+        this.saveSessionState();
         this.loadChartData();
 
         // Reload indicators for new period

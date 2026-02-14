@@ -199,7 +199,20 @@ class TradingAPI {
         if (Object.keys(params).length > 0) {
             queryParams.append('params', JSON.stringify(params));
         }
-        return this.request(`/indicators/calculate?${queryParams}`);
+        return this.request(`/indicators/calculate?${queryParams}`, { method: 'POST' });
+    }
+
+    // ==================== Session ====================
+
+    async getSession(sessionKey = 'default') {
+        return this.request(`/session?session_key=${sessionKey}`);
+    }
+
+    async saveSession(sessionData, sessionKey = 'default') {
+        return this.request(`/session?session_key=${sessionKey}`, {
+            method: 'PUT',
+            body: JSON.stringify(sessionData),
+        });
     }
 
     // ==================== Health ====================

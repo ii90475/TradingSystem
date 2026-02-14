@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -35,7 +36,9 @@ from tradingsystem.api import (
     live_trading_router,
     dashboard_router,
     rates_router,
+    session_router,
 )
+from tradingsystem.services import session_service
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -66,6 +69,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Database schema initialized")
     except Exception as e:
         logger.warning(f"Schema initialization skipped (may already exist): {e}")
+
+    # Initialize session table
+    try:
+        await session_service.init_session_table()
+    except Exception as e:
+        logger.warning(f"Session table initialization skipped: {e}")
 
     # Check RateService connectivity
     rs_health = await rateservice_client.check_health()
@@ -104,8 +113,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.7.0",
+    version="0.41.0",
     lifespan=lifespan,
+)
+
+# Add CORS middleware for browser requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register API routers (original paths for backward compatibility)
@@ -119,6 +137,7 @@ app.include_router(positions_router)
 app.include_router(live_trading_router)
 app.include_router(dashboard_router)
 app.include_router(rates_router)
+app.include_router(session_router)
 
 # Also register with /api prefix for frontend
 app.include_router(charts_router, prefix="/api")
@@ -131,6 +150,7 @@ app.include_router(positions_router, prefix="/api")
 app.include_router(live_trading_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(rates_router, prefix="/api")
+app.include_router(session_router, prefix="/api")
 
 # Mount static files for frontend
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
@@ -202,7 +222,7 @@ async def root() -> dict:
     """Root endpoint with API info."""
     return {
         "name": settings.app_name,
-        "version": "0.30.0",
+        "version": "0.41.0",
         "description": "Automated trading system",
         "mode": "LIVE" if settings.live_trading_enabled else "PAPER",
         "ui": "/ui",

@@ -480,23 +480,29 @@ class ChartManager {
     addIndicator(indicator, values) {
         if (!this.chart || !values || values.length === 0) return;
 
+        console.log(`Adding indicator: ${indicator.name}, displayType: ${indicator.displayType}, values: ${values.length}`);
+
         // Remove existing series if present (for updates)
         this.removeIndicator(indicator.id);
 
         // Parse and format the data
         const seriesData = this.formatIndicatorData(values, indicator.name);
+        console.log(`Formatted data - mainSeries: ${seriesData.mainSeries.length}, additionalSeries keys:`, Object.keys(seriesData.additionalSeries));
 
         if (indicator.displayType === 'overlay') {
             // Add as overlay on price pane
+            console.log('Adding as OVERLAY on price pane');
             this.addOverlayIndicator(indicator, seriesData);
         } else {
             // Add in separate pane below chart
+            console.log('Adding as PANE below chart');
             this.addPaneIndicator(indicator, seriesData);
         }
     }
 
     /**
      * Format indicator values for TradingView chart.
+     * Filters out non-price series for overlay indicators (e.g., BBB%, BBP% from Bollinger Bands).
      */
     formatIndicatorData(values, indicatorName) {
         // Handle different value formats
@@ -505,18 +511,34 @@ class ChartManager {
             additionalSeries: {},
         };
 
+        // Define which columns to include for known indicators
+        // For Bollinger Bands: only include BBL (lower), BBM (middle), BBU (upper)
+        // Exclude BBB (bandwidth %) and BBP (percent B) as they're not price values
+        const indicatorFilters = {
+            'bbands': (key) => key.startsWith('BBL') || key.startsWith('BBM') || key.startsWith('BBU'),
+            'kc': (key) => key.startsWith('KCL') || key.startsWith('KCM') || key.startsWith('KCU'),
+            'donchian': (key) => key.startsWith('DCL') || key.startsWith('DCM') || key.startsWith('DCU'),
+        };
+
+        const filterFn = indicatorFilters[indicatorName.toLowerCase()];
+
         values.forEach(v => {
             const time = this.parseTime(v.time);
 
             // Check if this is multi-value (like MACD with macd, signal, histogram)
-            const keys = Object.keys(v).filter(k => k !== 'time');
+            let keys = Object.keys(v).filter(k => k !== 'time');
+
+            // Apply filter if one exists for this indicator
+            if (filterFn) {
+                keys = keys.filter(filterFn);
+            }
 
             if (keys.length === 1 && keys[0] === 'value') {
                 // Simple single-value indicator
                 if (v.value !== null) {
                     result.mainSeries.push({ time, value: v.value });
                 }
-            } else {
+            } else if (keys.length > 0) {
                 // Multi-value indicator (e.g., MACD, Bollinger Bands)
                 keys.forEach(key => {
                     if (v[key] !== null) {
