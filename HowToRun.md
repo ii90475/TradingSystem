@@ -55,11 +55,30 @@ tail -f ~/Library/Logs/rateservice-watchdog.log
 
 ### RateService Watchdog
 
-The watchdog runs every 5 minutes and:
+The watchdog runs every 5 minutes and provides **self-healing after reboots**:
+
+**Every 5 minutes:**
 - Checks if RateService is responding
 - Restarts the service if unhealthy
-- Detects data gaps and triggers automatic backfill
-- Logs all actions to `~/Library/Logs/rateservice-watchdog.log`
+- Monitors data freshness for all 10 currency pairs
+- Triggers backfill for stale data (> 5 minutes old)
+
+**After reboot (auto-detected):**
+- Performs deep historical gap scan (last 24 hours)
+- Finds and fills any gaps that accumulated during downtime
+- Ensures data continuity after system restarts
+
+**Manual commands:**
+```bash
+# Force startup scan (deep 24h analysis)
+/Users/jamesconsole/Code/TradingSystem/deploy/rateservice-watchdog.sh --startup
+
+# Check single pair
+/Users/jamesconsole/Code/TradingSystem/deploy/rateservice-watchdog.sh EUR_USD
+
+# View watchdog log
+tail -f ~/Library/Logs/rateservice-watchdog.log
+```
 
 ## 2. Paper Trading (Safe Testing)
 

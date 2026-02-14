@@ -1,5 +1,5 @@
 #!/bin/bash
-# RateService Watchdog Script - Enhanced Version
+# RateService Watchdog Script - Enhanced Version v2
 # Guarantees 100% data availability with retry logic and multi-pair monitoring
 #
 # Features:
@@ -7,16 +7,75 @@
 # - Retry logic for failed backfills (up to 3 attempts)
 # - Market hours awareness (skip weekends)
 # - Detects both real-time gaps and historical gaps
+# - Self-healing after reboots: scans for gaps in last 24h
 # - Robust error handling and logging
+#
+# Usage:
+#   ./rateservice-watchdog.sh           # Normal 5-minute check
+#   ./rateservice-watchdog.sh --startup # Deep scan after reboot (24h window)
+#   ./rateservice-watchdog.sh EUR_USD   # Check single pair
 
 RATESERVICE_URL="http://localhost:8000"
 LOG_FILE="/Users/jamesconsole/Library/Logs/rateservice-watchdog.log"
 MAX_GAP_MINUTES=5          # Alert if real-time gap exceeds this
 MAX_RETRY_ATTEMPTS=3       # Retry failed backfills
 RETRY_DELAY_SECONDS=30     # Wait between retries
+SCAN_WINDOW_HOURS=24       # Historical gap scan window (hours)
+MIN_GAP_SIZE_MINUTES=10    # Minimum gap size to trigger backfill
 
 # All currency pairs to monitor
 PAIRS="EUR_USD GBP_USD USD_JPY USD_CHF AUD_USD USD_CAD NZD_USD EUR_GBP EUR_JPY GBP_JPY"
+
+# State files
+LAST_RUN_FILE="/Users/jamesconsole/Library/Logs/watchdog-lastrun.ts"
+BOOT_TIME_FILE="/tmp/watchdog-boot-check"
+
+# Parse command line arguments
+STARTUP_MODE=false
+SINGLE_PAIR=""
+if [ "$1" = "--startup" ]; then
+    STARTUP_MODE=true
+elif [ -n "$1" ] && [ "$1" != "--startup" ]; then
+    SINGLE_PAIR="$1"
+    PAIRS="$1"
+fi
+
+# Auto-detect if this is first run after reboot
+# Compare system boot time with last run time
+detect_reboot() {
+    # Get system boot time (seconds since epoch)
+    boot_time=$(sysctl -n kern.boottime | awk '{print $4}' | tr -d ',')
+
+    # Check if we've already done a startup scan since this boot
+    if [ -f "$BOOT_TIME_FILE" ]; then
+        last_boot=$(cat "$BOOT_TIME_FILE")
+        if [ "$boot_time" = "$last_boot" ]; then
+            return 1  # Already ran startup scan for this boot
+        fi
+    fi
+
+    # Check if we have a last run timestamp
+    if [ ! -f "$LAST_RUN_FILE" ]; then
+        # First ever run - do startup scan
+        echo "$boot_time" > "$BOOT_TIME_FILE"
+        return 0
+    fi
+
+    # Compare boot time with last run
+    last_run=$(cat "$LAST_RUN_FILE")
+    if [ "$boot_time" -gt "$last_run" ]; then
+        # System was rebooted since last run - do startup scan
+        echo "$boot_time" > "$BOOT_TIME_FILE"
+        return 0
+    fi
+
+    return 1  # No reboot detected
+}
+
+# Update last run timestamp
+update_last_run() {
+    date +%s > "$LAST_RUN_FILE"
+}
 
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
@@ -167,6 +226,61 @@ print(now.strftime('%Y-%m-%dT%H:%M:%SZ'))
     return 0
 }
 
+# Scan for historical gaps in a pair (last SCAN_WINDOW_HOURS)
+# Returns gap count and triggers backfill for each gap found
+scan_historical_gaps() {
+    pair=$1
+    gaps_found=0
+    gaps_fixed=0
+
+    log "Scanning $pair for gaps in last ${SCAN_WINDOW_HOURS}h..."
+
+    # Query database directly for gaps > MIN_GAP_SIZE_MINUTES
+    gaps=$(docker exec rateservice-db psql -U postgres -d rateservice -t -A -c "
+        WITH candle_times AS (
+            SELECT time,
+                   LEAD(time) OVER (ORDER BY time) AS next_time
+            FROM fx_candles
+            WHERE pair = '$pair'
+              AND time > NOW() - INTERVAL '$SCAN_WINDOW_HOURS hours'
+        )
+        SELECT time::text, next_time::text,
+               EXTRACT(EPOCH FROM (next_time - time))/60 AS gap_minutes
+        FROM candle_times
+        WHERE next_time - time > INTERVAL '$MIN_GAP_SIZE_MINUTES minutes'
+          AND EXTRACT(DOW FROM time) NOT IN (0, 6)  -- Skip weekend gaps
+        ORDER BY time
+        LIMIT 50;
+    " 2>/dev/null)
+
+    if [ -z "$gaps" ]; then
+        log "No gaps found for $pair"
+        return 0
+    fi
+
+    # Process each gap
+    while IFS='|' read -r gap_start gap_end gap_minutes; do
+        if [ -z "$gap_start" ]; then
+            continue
+        fi
+
+        gaps_found=$((gaps_found + 1))
+        gap_mins_int=${gap_minutes%.*}
+        log "GAP: $pair from $gap_start to $gap_end (${gap_mins_int}m)"
+
+        # Convert to ISO format for API
+        from_time=$(echo "$gap_start" | sed 's/ /T/' | sed 's/+00$/Z/')
+        to_time=$(echo "$gap_end" | sed 's/ /T/' | sed 's/+00$/Z/')
+
+        if trigger_backfill_with_retry "$pair" "$from_time" "$to_time"; then
+            gaps_fixed=$((gaps_fixed + 1))
+        fi
+    done <<< "$gaps"
+
+    log "Gap scan complete for $pair: $gaps_found found, $gaps_fixed fixed"
+    return $gaps_found
+}
+
 # Restart RateService via launchctl with retry
 restart_service() {
     for attempt in 1 2 3; do
@@ -188,10 +302,20 @@ restart_service() {
 
 # Main watchdog logic
 main() {
-    log "=== Watchdog check started ==="
+    # Auto-detect reboot and switch to startup mode
+    if [ "$STARTUP_MODE" != true ] && detect_reboot; then
+        log "Reboot detected - switching to startup mode"
+        STARTUP_MODE=true
+    fi
 
-    # Check if market is open
-    if ! is_market_open; then
+    if [ "$STARTUP_MODE" = true ]; then
+        log "=== Watchdog STARTUP scan started (deep ${SCAN_WINDOW_HOURS}h window) ==="
+    else
+        log "=== Watchdog check started ==="
+    fi
+
+    # Check if market is open (but always run startup scan to catch reboot gaps)
+    if ! is_market_open && [ "$STARTUP_MODE" != true ]; then
         log "Market is closed (weekend). Skipping freshness check."
         log "=== Watchdog check complete (market closed) ==="
         return 0
@@ -208,10 +332,32 @@ main() {
         sleep 10
     fi
 
-    # Check all pairs for data freshness
+    # Check all pairs for data freshness (real-time gaps)
     check_all_pairs_freshness
 
-    log "=== Watchdog check complete ==="
+    # In startup mode or every 12th run (hourly), scan for historical gaps
+    if [ "$STARTUP_MODE" = true ]; then
+        log "Running deep historical gap scan..."
+        total_gaps=0
+        for pair in $PAIRS; do
+            scan_historical_gaps "$pair"
+            total_gaps=$((total_gaps + $?))
+        done
+        if [ $total_gaps -gt 0 ]; then
+            log "Deep scan found $total_gaps total gaps"
+        else
+            log "Deep scan complete: no gaps found"
+        fi
+    fi
+
+    # Update last run timestamp
+    update_last_run
+
+    if [ "$STARTUP_MODE" = true ]; then
+        log "=== Watchdog STARTUP scan complete ==="
+    else
+        log "=== Watchdog check complete ==="
+    fi
 }
 
 main
