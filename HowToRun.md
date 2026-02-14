@@ -397,15 +397,70 @@ If http://localhost:8002/ui is slow or timing out:
 
 ### Historical Data Backfill
 
-If historical data is missing or has gaps, use the backfill script:
+If historical data is missing or has gaps, use the robust backfill script:
 
 ```bash
-# Run historical backfill for all pairs (takes ~17 hours)
-nohup ./deploy/run-historical-backfill.sh > ~/Library/Logs/historical-backfill.log 2>&1 &
+# Run robust backfill for all pairs (auto-resumes from state)
+./deploy/robust-backfill.sh
+
+# Check current state
+./deploy/robust-backfill.sh --status
+
+# Reset state and start fresh
+./deploy/robust-backfill.sh --reset
 
 # Monitor progress
-tail -f ~/Library/Logs/historical-backfill.log
+tail -f ~/Library/Logs/robust-backfill.log
+```
 
+#### Robust Backfill Features (v0.40.3)
+
+The `robust-backfill.sh` script was designed to handle large-scale historical backfills without crashing the database:
+
+| Feature | Description |
+|---------|-------------|
+| **7-day chunking** | Processes gaps in small batches to prevent memory spikes |
+| **Bulk mode API** | Pauses RateService matview refresh during backfill |
+| **TimescaleDB job control** | Disables continuous aggregate policies during bulk ops |
+| **State tracking** | Saves progress to JSON file for crash recovery |
+| **Health checks** | Verifies DB health before each batch |
+| **Retry logic** | Retries failed chunks 3 times before marking failed |
+| **Colored output** | Easy to see success/failure at a glance |
+
+#### Why This Exists
+
+The original backfill approach caused database crashes:
+1. Large backfills inserted millions of rows
+2. Background jobs (materialized view refresh, continuous aggregates) ran simultaneously
+3. `REFRESH MATERIALIZED VIEW CONCURRENTLY` consumed too much memory
+4. Linux OOM killer terminated postgres, causing database crash and recovery mode
+
+The robust script prevents this by:
+- Disabling background refresh jobs during bulk operations
+- Processing data in smaller chunks
+- Checking database health before each batch
+- Using non-concurrent view refresh after completion
+
+#### Bulk Mode API (RateService)
+
+RateService exposes a bulk mode API to pause heavy background jobs:
+
+```bash
+# Enable bulk mode (pause matview refresh)
+curl -X POST "http://localhost:8000/admin/bulk-mode?enable=true"
+
+# Disable bulk mode (resume normal operation)
+curl -X POST "http://localhost:8000/admin/bulk-mode?enable=false"
+
+# Check status
+curl http://localhost:8000/admin/bulk-mode
+```
+
+#### Manual Backfill
+
+For smaller gaps, use the API directly:
+
+```bash
 # Check data coverage for a specific pair
 curl http://localhost:8000/rates/EUR_USD/coverage
 
