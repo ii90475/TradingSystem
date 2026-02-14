@@ -45,12 +45,21 @@ Proposed: Detect gaps within 60 seconds of occurrence
 ```python
 # Reject ticks that are:
 - > 5 standard deviations from rolling mean
-- > 2% price move in 1 minute (flash crash detection)
+- > 1% price move in 1 minute (flash crash detection)
 - Stale (same price for > 5 minutes during market hours)
 - Out of sequence (timestamp regression)
+- Zero or negative prices
+- Spread > 10× average
 ```
 
-**Status:** Planned for future implementation
+**Status:** ✅ Implemented in v0.40.6
+
+**Implementation details:**
+- Validation runs on every tick before database storage
+- Rolling cache: 500 ticks per pair (~8 hours of M1)
+- Cache warmed from DB on startup (handles weekends)
+- Chart-driven stats: `GET /rates/{pair}/stats?period=50`
+- Returns: mean, std_dev, Bollinger bands, min/max, spread_avg
 
 ### 4. Database Resilience
 ```
@@ -108,7 +117,7 @@ class RateSourceCircuitBreaker:
 |-------|-------|--------|--------|
 | **Phase A** | Multi-source with failover | 1-2 weeks | Planned |
 | **Phase B** | Real-time gap detection + circuit breaker | 1 week | ✅ Done |
-| **Phase C** | Tick validation + anomaly detection | 1 week | Planned |
+| **Phase C** | Tick validation + anomaly detection | 1 week | ✅ Done |
 | **Phase D** | Database replication + failover | 2-3 days | Planned |
 | **Phase E** | Observability stack (Prometheus/Grafana) | 2-3 days | Partial |
 | **Phase F** | Queue-based architecture | 1-2 weeks | Planned |
@@ -117,13 +126,14 @@ class RateSourceCircuitBreaker:
 
 1. **Add secondary data source** - FXCM or free ECN feed
 2. **Move gap detection into RateService** - ✅ Done (v0.40.5)
-3. **Add tick validation** - Reject obvious bad data
+3. **Add tick validation** - ✅ Done (v0.40.6)
 4. **Enable WAL archiving** - Point-in-time recovery for PostgreSQL
 
 ## Version History
 
 | Version | Enhancement |
 |---------|-------------|
+| v0.40.6 | Tick validation with chart-driven rolling stats |
 | v0.40.5 | Real-time gap detection with immediate backfill |
 | v0.40.4 | Self-healing watchdog with reboot detection |
 | v0.40.3 | Robust backfill system with chunked processing |
