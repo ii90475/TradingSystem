@@ -21,6 +21,8 @@ class ChartManager {
         this.zoomStateByKey = new Map();
         // Store indicator series by id
         this.indicatorSeries = new Map();
+        // Track pane indicators for vertical layout
+        this.paneIndicatorIds = [];
     }
 
     init() {
@@ -610,10 +612,14 @@ class ChartManager {
 
     /**
      * Add pane indicator (below chart in separate pane).
+     * Each pane gets its own vertical slice below the price chart.
      */
     addPaneIndicator(indicator, seriesData) {
         // Create a new price scale for this indicator
         const priceScaleId = `indicator-${indicator.id}`;
+
+        // Add to pane indicator list
+        this.paneIndicatorIds.push(indicator.id);
 
         const series = this.chart.addLineSeries({
             color: indicator.color,
@@ -628,15 +634,6 @@ class ChartManager {
             },
         });
 
-        // Configure the price scale for the indicator pane
-        series.priceScale().applyOptions({
-            scaleMargins: {
-                top: 0.8,
-                bottom: 0.02,
-            },
-            borderVisible: false,
-        });
-
         series.setData(seriesData.mainSeries);
 
         // Store series reference
@@ -646,6 +643,9 @@ class ChartManager {
             additional: [],
             priceScaleId: priceScaleId,
         });
+
+        // Recalculate and apply margins for all pane indicators
+        this.redistributePaneMargins();
 
         // Add additional series for multi-value indicators (e.g., MACD signal line)
         const additionalColors = ['#f0883e', '#a371f7', '#3fb950'];
@@ -692,6 +692,95 @@ class ChartManager {
     }
 
     /**
+     * Redistribute vertical space for all pane indicators.
+     * Shrinks the price chart and stacks indicator panes below it.
+     *
+     * Layout with N pane indicators:
+     * - Price chart: top 10% to (55 - N*12)% from bottom
+     * - Each indicator pane: ~12% height, stacked at bottom
+     */
+    redistributePaneMargins() {
+        const count = this.paneIndicatorIds.length;
+
+        // Calculate how much space indicators need (12% each, max 4 indicators = 48%)
+        const paneHeight = 0.12;
+        const totalIndicatorSpace = Math.min(count * paneHeight, 0.48);
+
+        // Adjust price chart to make room for indicators at bottom
+        // Price chart: top margin 0.05, bottom margin = totalIndicatorSpace + 0.05
+        const priceChartBottomMargin = count > 0 ? totalIndicatorSpace + 0.05 : 0.15;
+
+        // Apply to candlestick series (main price chart)
+        if (this.candlestickSeries) {
+            this.candlestickSeries.priceScale().applyOptions({
+                scaleMargins: {
+                    top: 0.05,
+                    bottom: priceChartBottomMargin,
+                },
+            });
+        }
+
+        // Apply to SMA series (overlay on price chart)
+        if (this.smaSeries) {
+            this.smaSeries.priceScale().applyOptions({
+                scaleMargins: {
+                    top: 0.05,
+                    bottom: priceChartBottomMargin,
+                },
+            });
+        }
+
+        // Adjust volume series to stay within price chart area
+        if (this.volumeSeries) {
+            // Volume sits at bottom of price chart area
+            // When indicators are added, volume needs to move up too
+            const volumeTop = count > 0 ? (1 - priceChartBottomMargin - 0.15) : 0.8;
+            this.volumeSeries.priceScale().applyOptions({
+                scaleMargins: {
+                    top: volumeTop,
+                    bottom: priceChartBottomMargin,
+                },
+            });
+        }
+
+        if (count === 0) return;
+
+        // Stack indicator panes at the bottom
+        // Each pane is ~12% of chart height
+        this.paneIndicatorIds.forEach((id, index) => {
+            const seriesInfo = this.indicatorSeries.get(id);
+            if (!seriesInfo || seriesInfo.type !== 'pane') return;
+
+            // Calculate margins for this pane (from bottom up)
+            // Pane 0 (first added): closest to price chart
+            // Pane N (last added): at very bottom
+            const paneBottomEdge = (count - 1 - index) * paneHeight + 0.02;
+            const paneTopEdge = 1 - ((count - index) * paneHeight) - 0.02;
+
+            const margins = {
+                top: paneTopEdge,
+                bottom: paneBottomEdge,
+            };
+
+            // Apply to main series
+            if (seriesInfo.main) {
+                seriesInfo.main.priceScale().applyOptions({
+                    scaleMargins: margins,
+                    borderVisible: false,
+                });
+            }
+
+            // Apply same margins to additional series (they share the pane)
+            for (const series of seriesInfo.additional) {
+                series.priceScale().applyOptions({
+                    scaleMargins: margins,
+                    borderVisible: false,
+                });
+            }
+        });
+    }
+
+    /**
      * Remove an indicator from the chart.
      */
     removeIndicator(indicatorId) {
@@ -712,6 +801,13 @@ class ChartManager {
         }
 
         this.indicatorSeries.delete(indicatorId);
+
+        // If this was a pane indicator, remove from tracking and redistribute
+        const paneIndex = this.paneIndicatorIds.indexOf(indicatorId);
+        if (paneIndex !== -1) {
+            this.paneIndicatorIds.splice(paneIndex, 1);
+            this.redistributePaneMargins();
+        }
     }
 
     /**
@@ -735,9 +831,14 @@ class ChartManager {
      * Clear all indicators from the chart.
      */
     clearAllIndicators() {
-        for (const indicatorId of this.indicatorSeries.keys()) {
+        // Copy keys since removeIndicator modifies the map
+        const indicatorIds = [...this.indicatorSeries.keys()];
+        for (const indicatorId of indicatorIds) {
             this.removeIndicator(indicatorId);
         }
+        // Ensure pane list is cleared and margins restored
+        this.paneIndicatorIds = [];
+        this.redistributePaneMargins();
     }
 
     destroy() {

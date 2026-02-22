@@ -63,9 +63,14 @@ Server runs on **port 8002** (not 8000). Dashboard at http://localhost:8002/ui
 
 ## Browser Caching
 
-Static CSS/JS files may be cached by the browser. After changes:
-1. Restart the server
-2. Hard refresh browser (bypasses cache)
+Static CSS/JS files use version query strings for cache-busting.
+
+**When editing frontend files (JS/CSS):**
+1. Make the code changes
+2. Bump the version in `index.html` (e.g., `?v=0.42.1` → `?v=0.42.2`)
+3. Restart the server
+
+This ensures browsers fetch fresh files on normal refresh - no hard refresh needed.
 
 ## Phase 10 Development
 
