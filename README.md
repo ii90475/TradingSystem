@@ -276,6 +276,7 @@ These are infrastructure concerns that are validated through integration testing
 
 | Version | Phase | Description |
 |---------|-------|-------------|
+| v0.42.2 | Phase 10.2 | **Strategy Instances & Service Startup**: Saved strategy configurations UI (create/edit/delete instances bound to instrument/period/params), dependency-aware service startup scripts (wait for Docker/TimescaleDB/RateService before starting), startup logging |
 | v0.41.0 | Phase 10.1 | **Chart Session Persistence & Indicator UI**: API-backed session storage for chart state (instrument, period, indicators), localStorage cache fallback, indicator overlay fixes (BBands scale), auto-add indicators on select, CORS middleware |
 | v0.40.6 | - | **Tick validation**: Validates ticks before storage (outlier rejection, flash crash detection), plus chart-driven rolling stats API |
 | v0.40.5 | - | **Real-time gap detection**: In-process gap detector with circuit breaker, runs every minute to catch gaps within 60 seconds |

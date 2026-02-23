@@ -17,7 +17,30 @@ uvicorn tradingsystem.main:app --port 8002
 
 ### Auto-Start on Boot (macOS)
 
-Both services can be configured to start automatically on boot using launchd.
+Both services start automatically on boot using launchd with **dependency checking**. The startup scripts wait for upstream services to be healthy before starting.
+
+**Service Dependency Chain:**
+```
+Docker Desktop (must enable "Start on login" in Docker settings)
+    └── TimescaleDB container (auto-started by RateService script)
+            └── RateService (waits for DB to be ready)
+                    └── TradingSystem (waits for RateService /health)
+```
+
+**Startup Scripts (v0.42.2):**
+
+The launchd plists use wrapper scripts that poll dependencies before starting:
+
+| Script | Waits For | Timeout |
+|--------|-----------|---------|
+| `RateService/scripts/start-with-deps.sh` | Docker daemon, TimescaleDB container | 120s |
+| `TradingSystem/scripts/start-with-deps.sh` | RateService `/health` endpoint | 180s |
+
+**Startup logs:**
+```bash
+tail -f ~/Library/Logs/rateservice-startup.log
+tail -f ~/Library/Logs/tradingsystem-startup.log
+```
 
 **Install the launch agents:**
 ```bash
@@ -31,6 +54,8 @@ launchctl load ~/Library/LaunchAgents/com.rateservice.app.plist
 launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
 launchctl load ~/Library/LaunchAgents/com.rateservice.watchdog.plist
 ```
+
+**Important:** Enable Docker Desktop auto-start: Docker Desktop → Settings → General → "Start Docker Desktop when you sign in"
 
 **Manage services:**
 ```bash

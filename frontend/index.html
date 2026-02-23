@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.42.2">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -93,6 +93,7 @@
                 </div>
                 <div class="panel-content">
                     <div class="indicator-selector">
+                        <label class="sidebar-label">Add Indicator</label>
                         <select id="indicator-select" class="form-input" style="width: 100%;">
                             <option value="">Select indicator...</option>
                         </select>
@@ -102,6 +103,26 @@
                     </div>
                 </div>
             </div>
+            <!-- Strategy Instances -->
+            <div class="panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
+                    <span>Strategies</span>
+                    <div class="panel-header-right">
+                        <span id="strategy-instance-count" style="font-size: 11px;">0</span>
+                        <span class="panel-toggle">▼</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="strategy-instance-actions">
+                        <label class="sidebar-label">Saved Configurations</label>
+                        <button id="new-strategy-btn" class="btn-small" onclick="app.showStrategyInstanceModal()">+ New</button>
+                    </div>
+                    <div id="strategy-instances-container">
+                        <div class="empty-state">No saved strategies</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Order Form -->
             <div class="panel sidebar-content collapsible">
                 <div class="panel-header" data-toggle="panel">
@@ -170,9 +191,75 @@
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
+    <!-- Strategy Instance Modal -->
+    <div id="strategy-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="app.hideStrategyInstanceModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="strategy-modal-title">New Strategy Instance</h3>
+                <button class="modal-close" onclick="app.hideStrategyInstanceModal()">×</button>
+            </div>
+            <form id="strategy-instance-form" onsubmit="app.handleStrategyInstanceSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="si-name" class="form-input" placeholder="e.g., GBP Daily Trend" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Strategy</label>
+                    <select id="si-strategy" class="form-input" required>
+                        <option value="">Select strategy...</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Instrument</label>
+                        <select id="si-instrument" class="form-input" required>
+                            <option value="EUR_USD">EUR/USD</option>
+                            <option value="GBP_USD">GBP/USD</option>
+                            <option value="USD_JPY">USD/JPY</option>
+                            <option value="AUD_USD">AUD/USD</option>
+                            <option value="USD_CAD">USD/CAD</option>
+                            <option value="USD_CHF">USD/CHF</option>
+                            <option value="NZD_USD">NZD/USD</option>
+                            <option value="EUR_GBP">EUR/GBP</option>
+                            <option value="EUR_JPY">EUR/JPY</option>
+                            <option value="GBP_JPY">GBP/JPY</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Period</label>
+                        <select id="si-period" class="form-input" required>
+                            <option value="M1">1 Min</option>
+                            <option value="M5">5 Min</option>
+                            <option value="M15">15 Min</option>
+                            <option value="H1">1 Hour</option>
+                            <option value="H4">4 Hour</option>
+                            <option value="D">Daily</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Parameters (JSON)</label>
+                    <textarea id="si-params" class="form-input" rows="3" placeholder='{"fast_period": 10, "slow_period": 20}'></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="si-enabled" checked>
+                        <span>Enabled for signal generation</span>
+                    </label>
+                </div>
+                <input type="hidden" id="si-id">
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="app.hideStrategyInstanceModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="si-submit-btn">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.41.0"></script>
-    <script src="/static/js/chart.js?v=0.41.0"></script>
-    <script src="/static/js/app.js?v=0.41.0"></script>
+    <script src="/static/js/api.js?v=0.42.1"></script>
+    <script src="/static/js/chart.js?v=0.42.1"></script>
+    <script src="/static/js/app.js?v=0.42.1"></script>
 </body>
 </html>

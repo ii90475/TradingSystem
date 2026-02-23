@@ -23,6 +23,10 @@ class TradingApp {
         this.availableIndicators = [];
         this.activeIndicators = [];
         this.maxIndicators = 10;
+        // Strategy instance state
+        this.strategyInstances = [];
+        this.availableStrategies = [];
+        this.editingInstanceId = null;
         this.indicatorColors = [
             '#58a6ff', '#f0883e', '#a371f7', '#3fb950', '#f85149',
             '#db61a2', '#79c0ff', '#d29922', '#8b949e', '#7ee787'
@@ -241,8 +245,9 @@ class TradingApp {
                 this.loadSignals(),
             ]);
 
-            // Load indicators in background (non-blocking)
+            // Load indicators and strategy instances in background (non-blocking)
             this.loadAvailableIndicators();
+            this.loadStrategyInstances();
 
             // Restore saved indicators on chart
             if (this.activeIndicators.length > 0) {
@@ -641,6 +646,255 @@ class TradingApp {
         // Called when instrument or period changes
         for (const indicator of this.activeIndicators) {
             await this.calculateAndRenderIndicator(indicator);
+        }
+    }
+
+    // ==================== Strategy Instance Methods ====================
+
+    async loadStrategyInstances() {
+        try {
+            this.strategyInstances = await api.getStrategyInstances();
+            this.renderStrategyInstances();
+
+            // Also load available strategies for the modal
+            this.availableStrategies = await api.getAvailableStrategies();
+            this.populateStrategySelect();
+        } catch (error) {
+            console.error('Failed to load strategy instances:', error);
+            this.strategyInstances = [];
+            this.renderStrategyInstances();
+        }
+    }
+
+    populateStrategySelect() {
+        const select = document.getElementById('si-strategy');
+        if (!select) return;
+
+        // Clear existing options except the first
+        select.innerHTML = '<option value="">Select strategy...</option>';
+
+        // Deduplicate strategies by ID
+        const seen = new Set();
+        const uniqueStrategies = this.availableStrategies.filter(s => {
+            if (seen.has(s.id)) return false;
+            seen.add(s.id);
+            return true;
+        });
+
+        uniqueStrategies.forEach(strategy => {
+            const option = document.createElement('option');
+            option.value = strategy.id;
+            option.textContent = strategy.name;
+            option.title = strategy.description;
+            select.appendChild(option);
+        });
+    }
+
+    renderStrategyInstances() {
+        const container = document.getElementById('strategy-instances-container');
+        const countEl = document.getElementById('strategy-instance-count');
+
+        if (countEl) {
+            countEl.textContent = this.strategyInstances.length;
+        }
+
+        if (!container) return;
+
+        if (this.strategyInstances.length === 0) {
+            container.innerHTML = '<div class="empty-state">No saved strategies</div>';
+            return;
+        }
+
+        container.innerHTML = this.strategyInstances.map(inst => `
+            <div class="strategy-instance-item ${inst.enabled ? '' : 'disabled'}" data-id="${inst.id}">
+                <div class="si-header">
+                    <span class="si-name">${this.escapeHtml(inst.name)}</span>
+                    <span class="si-status ${inst.enabled ? 'active' : 'inactive'}">${inst.enabled ? '●' : '○'}</span>
+                </div>
+                <div class="si-details">
+                    <span class="si-strategy">${inst.strategy_id}</span>
+                    <span class="si-instrument">${inst.instrument.replace('_', '/')}</span>
+                    <span class="si-period">${inst.period}</span>
+                </div>
+                <div class="si-actions">
+                    <button class="si-btn toggle" onclick="app.toggleStrategyInstance('${inst.id}')" title="${inst.enabled ? 'Disable' : 'Enable'}">
+                        ${inst.enabled ? '⏸' : '▶'}
+                    </button>
+                    <button class="si-btn backtest" onclick="app.runStrategyBacktest('${inst.id}')" title="Run Backtest">📊</button>
+                    <button class="si-btn edit" onclick="app.editStrategyInstance('${inst.id}')" title="Edit">✏️</button>
+                    <button class="si-btn delete" onclick="app.deleteStrategyInstance('${inst.id}')" title="Delete">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    showStrategyInstanceModal(instanceId = null) {
+        const modal = document.getElementById('strategy-modal');
+        const title = document.getElementById('strategy-modal-title');
+        const submitBtn = document.getElementById('si-submit-btn');
+        const form = document.getElementById('strategy-instance-form');
+
+        if (!modal || !form) return;
+
+        this.editingInstanceId = instanceId;
+
+        if (instanceId) {
+            // Edit mode
+            const instance = this.strategyInstances.find(i => i.id === instanceId);
+            if (!instance) return;
+
+            title.textContent = 'Edit Strategy Instance';
+            submitBtn.textContent = 'Save';
+
+            document.getElementById('si-id').value = instance.id;
+            document.getElementById('si-name').value = instance.name;
+            document.getElementById('si-strategy').value = instance.strategy_id;
+            document.getElementById('si-strategy').disabled = true; // Can't change strategy
+            document.getElementById('si-instrument').value = instance.instrument;
+            document.getElementById('si-instrument').disabled = true; // Can't change instrument
+            document.getElementById('si-period').value = instance.period;
+            document.getElementById('si-period').disabled = true; // Can't change period
+            document.getElementById('si-params').value = JSON.stringify(instance.parameters, null, 2);
+            document.getElementById('si-enabled').checked = instance.enabled;
+        } else {
+            // Create mode
+            title.textContent = 'New Strategy Instance';
+            submitBtn.textContent = 'Create';
+            form.reset();
+            document.getElementById('si-id').value = '';
+            document.getElementById('si-strategy').disabled = false;
+            document.getElementById('si-instrument').disabled = false;
+            document.getElementById('si-period').disabled = false;
+            document.getElementById('si-enabled').checked = true;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    hideStrategyInstanceModal() {
+        const modal = document.getElementById('strategy-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        this.editingInstanceId = null;
+    }
+
+    async handleStrategyInstanceSubmit(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('si-submit-btn');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        try {
+            const name = document.getElementById('si-name').value.trim();
+            const strategyId = document.getElementById('si-strategy').value;
+            const instrument = document.getElementById('si-instrument').value;
+            const period = document.getElementById('si-period').value;
+            const paramsStr = document.getElementById('si-params').value.trim();
+            const enabled = document.getElementById('si-enabled').checked;
+
+            // Parse parameters
+            let parameters = {};
+            if (paramsStr) {
+                try {
+                    parameters = JSON.parse(paramsStr);
+                } catch (err) {
+                    this.showToast('Invalid JSON in parameters', 'error');
+                    return;
+                }
+            }
+
+            if (this.editingInstanceId) {
+                // Update existing
+                await api.updateStrategyInstance(this.editingInstanceId, {
+                    name,
+                    parameters,
+                    enabled,
+                });
+                this.showToast('Strategy instance updated', 'success');
+            } else {
+                // Create new
+                await api.createStrategyInstance({
+                    name,
+                    strategy_id: strategyId,
+                    instrument,
+                    period,
+                    parameters,
+                    enabled,
+                });
+                this.showToast('Strategy instance created', 'success');
+            }
+
+            this.hideStrategyInstanceModal();
+            await this.loadStrategyInstances();
+
+        } catch (error) {
+            this.showToast(error.message || 'Failed to save strategy instance', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+
+    editStrategyInstance(instanceId) {
+        this.showStrategyInstanceModal(instanceId);
+    }
+
+    async toggleStrategyInstance(instanceId) {
+        try {
+            await api.toggleStrategyInstance(instanceId);
+            await this.loadStrategyInstances();
+        } catch (error) {
+            this.showToast(error.message || 'Failed to toggle strategy instance', 'error');
+        }
+    }
+
+    async deleteStrategyInstance(instanceId) {
+        const instance = this.strategyInstances.find(i => i.id === instanceId);
+        if (!instance) return;
+
+        if (!confirm(`Delete "${instance.name}"? This cannot be undone.`)) return;
+
+        try {
+            await api.deleteStrategyInstance(instanceId);
+            this.showToast('Strategy instance deleted', 'success');
+            await this.loadStrategyInstances();
+        } catch (error) {
+            this.showToast(error.message || 'Failed to delete strategy instance', 'error');
+        }
+    }
+
+    async runStrategyBacktest(instanceId) {
+        const instance = this.strategyInstances.find(i => i.id === instanceId);
+        if (!instance) return;
+
+        this.showToast(`Running backtest for "${instance.name}"...`, 'info');
+
+        try {
+            const result = await api.runStrategyInstanceBacktest(instanceId, 30);
+            const metrics = result.result?.metrics || {};
+
+            // Show summary toast
+            const trades = metrics.total_trades || 0;
+            const returnPct = parseFloat(metrics.total_return_pct || 0).toFixed(2);
+            const winRate = (metrics.win_rate * 100 || 0).toFixed(1);
+
+            this.showToast(
+                `Backtest complete: ${trades} trades, ${returnPct}% return, ${winRate}% win rate`,
+                trades > 0 ? 'success' : 'info'
+            );
+
+            console.log('Backtest result:', result);
+        } catch (error) {
+            this.showToast(error.message || 'Backtest failed', 'error');
         }
     }
 

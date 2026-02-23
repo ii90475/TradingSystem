@@ -215,6 +215,57 @@ class TradingAPI {
         });
     }
 
+    // ==================== Strategy Instances ====================
+
+    async getStrategyInstances(filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.strategy_id) params.append('strategy_id', filters.strategy_id);
+        if (filters.instrument) params.append('instrument', filters.instrument);
+        if (filters.enabled !== undefined) params.append('enabled', filters.enabled);
+        const query = params.toString();
+        return this.request(`/strategy-instances${query ? '?' + query : ''}`);
+    }
+
+    async getStrategyInstance(instanceId) {
+        return this.request(`/strategy-instances/${instanceId}`);
+    }
+
+    async createStrategyInstance(data) {
+        return this.request('/strategy-instances', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateStrategyInstance(instanceId, data) {
+        return this.request(`/strategy-instances/${instanceId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteStrategyInstance(instanceId) {
+        return this.request(`/strategy-instances/${instanceId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async toggleStrategyInstance(instanceId) {
+        return this.request(`/strategy-instances/${instanceId}/toggle`, {
+            method: 'PATCH',
+        });
+    }
+
+    async runStrategyInstanceBacktest(instanceId, days = 30) {
+        return this.request(`/strategy-instances/${instanceId}/backtest?days=${days}`, {
+            method: 'POST',
+        });
+    }
+
+    async getAvailableStrategies() {
+        return this.request('/strategy-instances/strategies');
+    }
+
     // ==================== Health ====================
 
     async getHealth() {
