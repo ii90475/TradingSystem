@@ -80,3 +80,9 @@ See `phase10.md` for the full implementation plan. Priority order:
 3. **Phase 10.3:** Trade Visualization (arrows/triangles/dots on chart)
 4. **Phase 10.4:** Claude Indicator Creation (natural language → Python)
 5. **Phase 10.5:** Performance Dashboard (metrics, thresholds, alerts)
+
+## Project Documentation
+
+- `TradingSystemAIBuild.md` — master project doc (vision, architecture, current state)
+- `phase10.md` — detailed implementation plan for current phase
+- Requirement scoping is user-driven. Document what exists; do not propose future features.
