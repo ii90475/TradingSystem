@@ -57,3 +57,13 @@
 **Rationale:** Preserves context for future requirement scoping sessions without cluttering active documentation.
 
 **Made by:** User + Claude (collaborative)
+
+---
+
+## 2026-03-08: Commit Workflow Standard
+
+**Decision:** Code and docs always commit together as a single package. Before every commit: show current tag, ask user what tag to use. Detailed commit messages with category breakdowns. Tag and push in one step.
+
+**Rationale:** User identified drift where commits were being discussed piecemeal or docs shipped separately. Standardizing prevents fragmented state.
+
+**Made by:** User (explicit directive)

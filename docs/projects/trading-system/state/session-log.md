@@ -60,3 +60,28 @@
 - Build in waves: data layer → parallel tracks → execution engine
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-08 (evening)
+
+**Accomplished:**
+- Completed Issue #2: Refactor Chart to reference Series
+  - New charts table (id, name, series_id FK, created_at) with CASCADE delete
+  - Migrated chart_indicators.series_id → chart_id with auto-created default charts
+  - New Chart model, chart_service, charts API router (full CRUD)
+  - Indicator service/API refactored from series-scoped to chart-scoped
+  - 21 new tests, all 982 passing
+  - Committed and tagged as v0.45.0, pushed to remote
+- Tagged prior commit cc47292 as v0.44.0 (was missing its tag)
+- Updated CLAUDE.md commit workflow: code+docs always committed together, show current tag and ask user for tag before committing
+
+**Remaining:**
+- CLAUDE.md commit workflow update is uncommitted
+- Issue #3: Create chart_strategies table (completes Wave 1)
+- Issues #4-15: Waves 2-4 of Automated Trading milestone
+
+**Decisions made:**
+- Commit workflow standardized: code+docs are a package, always show current tag and ask user what tag to use, detailed commit messages, tag and push
+
+**Blockers:** None

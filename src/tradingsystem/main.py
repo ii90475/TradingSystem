@@ -30,7 +30,7 @@ from tradingsystem.api import (
     charts_router,
     indicators_router,
     strategies_router,
-    strategy_instances_router,
+    chart_strategies_router,
     signals_router,
     backtest_router,
     orders_router,
@@ -41,7 +41,6 @@ from tradingsystem.api import (
     session_router,
 )
 from tradingsystem.services import session_service
-from tradingsystem.services import strategy_instance_service
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -78,12 +77,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await session_service.init_session_table()
     except Exception as e:
         logger.warning(f"Session table initialization skipped: {e}")
-
-    # Initialize strategy instances table
-    try:
-        await strategy_instance_service.init_strategy_instances_table()
-    except Exception as e:
-        logger.warning(f"Strategy instances table initialization skipped: {e}")
 
     # Check RateService connectivity
     rs_health = await rateservice_client.check_health()
@@ -122,7 +115,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.45.0",
+    version="0.46.0",
     lifespan=lifespan,
 )
 
@@ -140,7 +133,7 @@ app.include_router(series_router)
 app.include_router(charts_router)
 app.include_router(indicators_router)
 app.include_router(strategies_router)
-app.include_router(strategy_instances_router)
+app.include_router(chart_strategies_router)
 app.include_router(signals_router)
 app.include_router(backtest_router)
 app.include_router(orders_router)
@@ -155,7 +148,7 @@ app.include_router(series_router, prefix="/api")
 app.include_router(charts_router, prefix="/api")
 app.include_router(indicators_router, prefix="/api")
 app.include_router(strategies_router, prefix="/api")
-app.include_router(strategy_instances_router, prefix="/api")
+app.include_router(chart_strategies_router, prefix="/api")
 app.include_router(signals_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(orders_router, prefix="/api")

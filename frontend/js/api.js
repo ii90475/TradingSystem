@@ -215,55 +215,61 @@ class TradingAPI {
         });
     }
 
-    // ==================== Strategy Instances ====================
+    // ==================== Charts ====================
 
-    async getStrategyInstances(filters = {}) {
+    async getCharts() {
+        return this.request('/charts');
+    }
+
+    // ==================== Chart Strategies ====================
+
+    async getChartStrategies(filters = {}) {
         const params = new URLSearchParams();
+        if (filters.chart_id) params.append('chart_id', filters.chart_id);
         if (filters.strategy_id) params.append('strategy_id', filters.strategy_id);
-        if (filters.instrument) params.append('instrument', filters.instrument);
         if (filters.enabled !== undefined) params.append('enabled', filters.enabled);
         const query = params.toString();
-        return this.request(`/strategy-instances${query ? '?' + query : ''}`);
+        return this.request(`/chart-strategies${query ? '?' + query : ''}`);
     }
 
-    async getStrategyInstance(instanceId) {
-        return this.request(`/strategy-instances/${instanceId}`);
+    async getChartStrategy(csId) {
+        return this.request(`/chart-strategies/${csId}`);
     }
 
-    async createStrategyInstance(data) {
-        return this.request('/strategy-instances', {
+    async createChartStrategy(data) {
+        return this.request('/chart-strategies', {
             method: 'POST',
             body: JSON.stringify(data),
         });
     }
 
-    async updateStrategyInstance(instanceId, data) {
-        return this.request(`/strategy-instances/${instanceId}`, {
+    async updateChartStrategy(csId, data) {
+        return this.request(`/chart-strategies/${csId}`, {
             method: 'PUT',
             body: JSON.stringify(data),
         });
     }
 
-    async deleteStrategyInstance(instanceId) {
-        return this.request(`/strategy-instances/${instanceId}`, {
+    async deleteChartStrategy(csId) {
+        return this.request(`/chart-strategies/${csId}`, {
             method: 'DELETE',
         });
     }
 
-    async toggleStrategyInstance(instanceId) {
-        return this.request(`/strategy-instances/${instanceId}/toggle`, {
+    async toggleChartStrategy(csId) {
+        return this.request(`/chart-strategies/${csId}/toggle`, {
             method: 'PATCH',
         });
     }
 
-    async runStrategyInstanceBacktest(instanceId, days = 30) {
-        return this.request(`/strategy-instances/${instanceId}/backtest?days=${days}`, {
+    async runChartStrategyBacktest(csId, days = 30) {
+        return this.request(`/chart-strategies/${csId}/backtest?days=${days}`, {
             method: 'POST',
         });
     }
 
     async getAvailableStrategies() {
-        return this.request('/strategy-instances/strategies');
+        return this.request('/chart-strategies/strategies');
     }
 
     // ==================== Health ====================

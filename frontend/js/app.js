@@ -23,10 +23,10 @@ class TradingApp {
         this.availableIndicators = [];
         this.activeIndicators = [];
         this.maxIndicators = 10;
-        // Strategy instance state
-        this.strategyInstances = [];
+        // Chart strategy state
+        this.chartStrategies = [];
         this.availableStrategies = [];
-        this.editingInstanceId = null;
+        this.editingStrategyId = null;
         this.indicatorColors = [
             '#58a6ff', '#f0883e', '#a371f7', '#3fb950', '#f85149',
             '#db61a2', '#79c0ff', '#d29922', '#8b949e', '#7ee787'
@@ -245,9 +245,9 @@ class TradingApp {
                 this.loadSignals(),
             ]);
 
-            // Load indicators and strategy instances in background (non-blocking)
+            // Load indicators and chart strategies in background (non-blocking)
             this.loadAvailableIndicators();
-            this.loadStrategyInstances();
+            this.loadChartStrategies();
 
             // Restore saved indicators on chart
             if (this.activeIndicators.length > 0) {
@@ -649,20 +649,20 @@ class TradingApp {
         }
     }
 
-    // ==================== Strategy Instance Methods ====================
+    // ==================== Chart Strategy Methods ====================
 
-    async loadStrategyInstances() {
+    async loadChartStrategies() {
         try {
-            this.strategyInstances = await api.getStrategyInstances();
-            this.renderStrategyInstances();
+            this.chartStrategies = await api.getChartStrategies();
+            this.renderChartStrategies();
 
             // Also load available strategies for the modal
             this.availableStrategies = await api.getAvailableStrategies();
             this.populateStrategySelect();
         } catch (error) {
-            console.error('Failed to load strategy instances:', error);
-            this.strategyInstances = [];
-            this.renderStrategyInstances();
+            console.error('Failed to load chart strategies:', error);
+            this.chartStrategies = [];
+            this.renderChartStrategies();
         }
     }
 
@@ -690,39 +690,38 @@ class TradingApp {
         });
     }
 
-    renderStrategyInstances() {
+    renderChartStrategies() {
         const container = document.getElementById('strategy-instances-container');
         const countEl = document.getElementById('strategy-instance-count');
 
         if (countEl) {
-            countEl.textContent = this.strategyInstances.length;
+            countEl.textContent = this.chartStrategies.length;
         }
 
         if (!container) return;
 
-        if (this.strategyInstances.length === 0) {
-            container.innerHTML = '<div class="empty-state">No saved strategies</div>';
+        if (this.chartStrategies.length === 0) {
+            container.innerHTML = '<div class="empty-state">No chart strategies</div>';
             return;
         }
 
-        container.innerHTML = this.strategyInstances.map(inst => `
-            <div class="strategy-instance-item ${inst.enabled ? '' : 'disabled'}" data-id="${inst.id}">
+        container.innerHTML = this.chartStrategies.map(cs => `
+            <div class="strategy-instance-item ${cs.enabled ? '' : 'disabled'}" data-id="${cs.id}">
                 <div class="si-header">
-                    <span class="si-name">${this.escapeHtml(inst.name)}</span>
-                    <span class="si-status ${inst.enabled ? 'active' : 'inactive'}">${inst.enabled ? '●' : '○'}</span>
+                    <span class="si-name">${this.escapeHtml(cs.strategy_id)}</span>
+                    <span class="si-status ${cs.enabled ? 'active' : 'inactive'}">${cs.enabled ? '●' : '○'}</span>
                 </div>
                 <div class="si-details">
-                    <span class="si-strategy">${inst.strategy_id}</span>
-                    <span class="si-instrument">${inst.instrument.replace('_', '/')}</span>
-                    <span class="si-period">${inst.period}</span>
+                    <span class="si-strategy">${cs.strategy_id}</span>
+                    <span class="si-chart-id" title="${cs.chart_id}">Chart</span>
                 </div>
                 <div class="si-actions">
-                    <button class="si-btn toggle" onclick="app.toggleStrategyInstance('${inst.id}')" title="${inst.enabled ? 'Disable' : 'Enable'}">
-                        ${inst.enabled ? '⏸' : '▶'}
+                    <button class="si-btn toggle" onclick="app.toggleChartStrategy('${cs.id}')" title="${cs.enabled ? 'Disable' : 'Enable'}">
+                        ${cs.enabled ? '⏸' : '▶'}
                     </button>
-                    <button class="si-btn backtest" onclick="app.runStrategyBacktest('${inst.id}')" title="Run Backtest">📊</button>
-                    <button class="si-btn edit" onclick="app.editStrategyInstance('${inst.id}')" title="Edit">✏️</button>
-                    <button class="si-btn delete" onclick="app.deleteStrategyInstance('${inst.id}')" title="Delete">🗑</button>
+                    <button class="si-btn backtest" onclick="app.runChartStrategyBacktest('${cs.id}')" title="Run Backtest">📊</button>
+                    <button class="si-btn edit" onclick="app.editChartStrategy('${cs.id}')" title="Edit">✏️</button>
+                    <button class="si-btn delete" onclick="app.deleteChartStrategy('${cs.id}')" title="Delete">🗑</button>
                 </div>
             </div>
         `).join('');
@@ -734,7 +733,7 @@ class TradingApp {
         return div.innerHTML;
     }
 
-    showStrategyInstanceModal(instanceId = null) {
+    async showChartStrategyModal(csId = null) {
         const modal = document.getElementById('strategy-modal');
         const title = document.getElementById('strategy-modal-title');
         const submitBtn = document.getElementById('si-submit-btn');
@@ -742,50 +741,68 @@ class TradingApp {
 
         if (!modal || !form) return;
 
-        this.editingInstanceId = instanceId;
+        // Populate chart dropdown
+        await this.populateChartSelect();
 
-        if (instanceId) {
+        this.editingStrategyId = csId;
+
+        if (csId) {
             // Edit mode
-            const instance = this.strategyInstances.find(i => i.id === instanceId);
-            if (!instance) return;
+            const cs = this.chartStrategies.find(i => i.id === csId);
+            if (!cs) return;
 
-            title.textContent = 'Edit Strategy Instance';
+            title.textContent = 'Edit Chart Strategy';
             submitBtn.textContent = 'Save';
 
-            document.getElementById('si-id').value = instance.id;
-            document.getElementById('si-name').value = instance.name;
-            document.getElementById('si-strategy').value = instance.strategy_id;
-            document.getElementById('si-strategy').disabled = true; // Can't change strategy
-            document.getElementById('si-instrument').value = instance.instrument;
-            document.getElementById('si-instrument').disabled = true; // Can't change instrument
-            document.getElementById('si-period').value = instance.period;
-            document.getElementById('si-period').disabled = true; // Can't change period
-            document.getElementById('si-params').value = JSON.stringify(instance.parameters, null, 2);
-            document.getElementById('si-enabled').checked = instance.enabled;
+            document.getElementById('si-id').value = cs.id;
+            document.getElementById('si-strategy').value = cs.strategy_id;
+            document.getElementById('si-strategy').disabled = true;
+            document.getElementById('si-chart-id').value = cs.chart_id;
+            document.getElementById('si-chart-id').disabled = true;
+            document.getElementById('si-params').value = JSON.stringify(cs.parameters, null, 2);
+            document.getElementById('si-enabled').checked = cs.enabled;
         } else {
             // Create mode
-            title.textContent = 'New Strategy Instance';
+            title.textContent = 'New Chart Strategy';
             submitBtn.textContent = 'Create';
             form.reset();
             document.getElementById('si-id').value = '';
             document.getElementById('si-strategy').disabled = false;
-            document.getElementById('si-instrument').disabled = false;
-            document.getElementById('si-period').disabled = false;
-            document.getElementById('si-enabled').checked = true;
+            document.getElementById('si-chart-id').disabled = false;
+            document.getElementById('si-enabled').checked = false;
         }
 
         modal.classList.remove('hidden');
     }
 
-    hideStrategyInstanceModal() {
+    async populateChartSelect() {
+        const select = document.getElementById('si-chart-id');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Select chart...</option>';
+
+        try {
+            const charts = await api.getCharts();
+            charts.forEach(chart => {
+                const option = document.createElement('option');
+                option.value = chart.id;
+                option.textContent = chart.name;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Failed to load charts:', error);
+        }
+    }
+
+    hideChartStrategyModal() {
         const modal = document.getElementById('strategy-modal');
         if (modal) {
             modal.classList.add('hidden');
         }
-        this.editingInstanceId = null;
+        this.editingStrategyId = null;
     }
 
-    async handleStrategyInstanceSubmit(e) {
+    async handleChartStrategySubmit(e) {
         e.preventDefault();
 
         const submitBtn = document.getElementById('si-submit-btn');
@@ -794,10 +811,8 @@ class TradingApp {
         submitBtn.textContent = 'Saving...';
 
         try {
-            const name = document.getElementById('si-name').value.trim();
             const strategyId = document.getElementById('si-strategy').value;
-            const instrument = document.getElementById('si-instrument').value;
-            const period = document.getElementById('si-period').value;
+            const chartId = document.getElementById('si-chart-id').value;
             const paramsStr = document.getElementById('si-params').value.trim();
             const enabled = document.getElementById('si-enabled').checked;
 
@@ -812,74 +827,71 @@ class TradingApp {
                 }
             }
 
-            if (this.editingInstanceId) {
+            if (this.editingStrategyId) {
                 // Update existing
-                await api.updateStrategyInstance(this.editingInstanceId, {
-                    name,
+                await api.updateChartStrategy(this.editingStrategyId, {
                     parameters,
                     enabled,
                 });
-                this.showToast('Strategy instance updated', 'success');
+                this.showToast('Chart strategy updated', 'success');
             } else {
                 // Create new
-                await api.createStrategyInstance({
-                    name,
+                await api.createChartStrategy({
+                    chart_id: chartId,
                     strategy_id: strategyId,
-                    instrument,
-                    period,
                     parameters,
                     enabled,
                 });
-                this.showToast('Strategy instance created', 'success');
+                this.showToast('Chart strategy created', 'success');
             }
 
-            this.hideStrategyInstanceModal();
-            await this.loadStrategyInstances();
+            this.hideChartStrategyModal();
+            await this.loadChartStrategies();
 
         } catch (error) {
-            this.showToast(error.message || 'Failed to save strategy instance', 'error');
+            this.showToast(error.message || 'Failed to save chart strategy', 'error');
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = originalText;
         }
     }
 
-    editStrategyInstance(instanceId) {
-        this.showStrategyInstanceModal(instanceId);
+    editChartStrategy(csId) {
+        this.showChartStrategyModal(csId);
     }
 
-    async toggleStrategyInstance(instanceId) {
+    async toggleChartStrategy(csId) {
         try {
-            await api.toggleStrategyInstance(instanceId);
-            await this.loadStrategyInstances();
+            await api.toggleChartStrategy(csId);
+            await this.loadChartStrategies();
         } catch (error) {
-            this.showToast(error.message || 'Failed to toggle strategy instance', 'error');
+            this.showToast(error.message || 'Failed to toggle chart strategy', 'error');
         }
     }
 
-    async deleteStrategyInstance(instanceId) {
-        const instance = this.strategyInstances.find(i => i.id === instanceId);
-        if (!instance) return;
+    async deleteChartStrategy(csId) {
+        const cs = this.chartStrategies.find(i => i.id === csId);
+        if (!cs) return;
 
-        if (!confirm(`Delete "${instance.name}"? This cannot be undone.`)) return;
+        if (!confirm(`Delete strategy "${cs.strategy_id}"? This cannot be undone.`)) return;
 
         try {
-            await api.deleteStrategyInstance(instanceId);
-            this.showToast('Strategy instance deleted', 'success');
-            await this.loadStrategyInstances();
+            await api.deleteChartStrategy(csId);
+            this.showToast('Chart strategy deleted', 'success');
+            await this.loadChartStrategies();
         } catch (error) {
-            this.showToast(error.message || 'Failed to delete strategy instance', 'error');
+            this.showToast(error.message || 'Failed to delete chart strategy', 'error');
         }
     }
 
-    async runStrategyBacktest(instanceId) {
-        const instance = this.strategyInstances.find(i => i.id === instanceId);
-        if (!instance) return;
+    async runChartStrategyBacktest(csId) {
+        const cs = this.chartStrategies.find(i => i.id === csId);
+        if (!cs) return;
 
-        this.showToast(`Running backtest for "${instance.name}"...`, 'info');
+        this.showToast(`Running backtest for "${cs.strategy_id}"...`, 'info');
 
         try {
-            const result = await api.runStrategyInstanceBacktest(instanceId, 30);
+            const result = await api.runChartStrategyBacktest(csId, 30);
             const metrics = result.result?.metrics || {};
 
             // Show summary toast

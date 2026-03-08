@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=0.42.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.46.0">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -115,7 +115,7 @@
                 <div class="panel-content">
                     <div class="strategy-instance-actions">
                         <label class="sidebar-label">Saved Configurations</label>
-                        <button id="new-strategy-btn" class="btn-small" onclick="app.showStrategyInstanceModal()">+ New</button>
+                        <button id="new-strategy-btn" class="btn-small" onclick="app.showChartStrategyModal()">+ New</button>
                     </div>
                     <div id="strategy-instances-container">
                         <div class="empty-state">No saved strategies</div>
@@ -193,16 +193,18 @@
 
     <!-- Strategy Instance Modal -->
     <div id="strategy-modal" class="modal hidden">
-        <div class="modal-backdrop" onclick="app.hideStrategyInstanceModal()"></div>
+        <div class="modal-backdrop" onclick="app.hideChartStrategyModal()"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="strategy-modal-title">New Strategy Instance</h3>
-                <button class="modal-close" onclick="app.hideStrategyInstanceModal()">×</button>
+                <h3 id="strategy-modal-title">New Chart Strategy</h3>
+                <button class="modal-close" onclick="app.hideChartStrategyModal()">×</button>
             </div>
-            <form id="strategy-instance-form" onsubmit="app.handleStrategyInstanceSubmit(event)">
+            <form id="strategy-instance-form" onsubmit="app.handleChartStrategySubmit(event)">
                 <div class="form-group">
-                    <label class="form-label">Name</label>
-                    <input type="text" id="si-name" class="form-input" placeholder="e.g., GBP Daily Trend" required>
+                    <label class="form-label">Chart</label>
+                    <select id="si-chart-id" class="form-input" required>
+                        <option value="">Select chart...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Strategy</label>
@@ -210,47 +212,19 @@
                         <option value="">Select strategy...</option>
                     </select>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Instrument</label>
-                        <select id="si-instrument" class="form-input" required>
-                            <option value="EUR_USD">EUR/USD</option>
-                            <option value="GBP_USD">GBP/USD</option>
-                            <option value="USD_JPY">USD/JPY</option>
-                            <option value="AUD_USD">AUD/USD</option>
-                            <option value="USD_CAD">USD/CAD</option>
-                            <option value="USD_CHF">USD/CHF</option>
-                            <option value="NZD_USD">NZD/USD</option>
-                            <option value="EUR_GBP">EUR/GBP</option>
-                            <option value="EUR_JPY">EUR/JPY</option>
-                            <option value="GBP_JPY">GBP/JPY</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Period</label>
-                        <select id="si-period" class="form-input" required>
-                            <option value="M1">1 Min</option>
-                            <option value="M5">5 Min</option>
-                            <option value="M15">15 Min</option>
-                            <option value="H1">1 Hour</option>
-                            <option value="H4">4 Hour</option>
-                            <option value="D">Daily</option>
-                        </select>
-                    </div>
-                </div>
                 <div class="form-group">
                     <label class="form-label">Parameters (JSON)</label>
                     <textarea id="si-params" class="form-input" rows="3" placeholder='{"fast_period": 10, "slow_period": 20}'></textarea>
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" id="si-enabled" checked>
+                        <input type="checkbox" id="si-enabled">
                         <span>Enabled for signal generation</span>
                     </label>
                 </div>
                 <input type="hidden" id="si-id">
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="app.hideStrategyInstanceModal()">Cancel</button>
+                    <button type="button" class="btn-secondary" onclick="app.hideChartStrategyModal()">Cancel</button>
                     <button type="submit" class="btn-primary" id="si-submit-btn">Create</button>
                 </div>
             </form>
@@ -258,8 +232,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.44.0"></script>
-    <script src="/static/js/chart.js?v=0.44.0"></script>
-    <script src="/static/js/app.js?v=0.44.0"></script>
+    <script src="/static/js/api.js?v=0.46.0"></script>
+    <script src="/static/js/chart.js?v=0.46.0"></script>
+    <script src="/static/js/app.js?v=0.46.0"></script>
 </body>
 </html>

@@ -2,13 +2,15 @@
 
 ## Commit Workflow
 
-Before committing changes, **discuss with the user** what needs to be captured:
-- Documentation updates (README, HowToRun, CLAUDE.md)
-- Configuration changes (plist files, .env examples)
-- Version/tag updates
-- Test coverage for new features
+Code and docs are a package — always commit them together. Every commit follows this process:
 
-Don't just commit - talk about what changes may need to accompany the code.
+1. **Stage everything** — code, tests, docs, config changes. Nothing ships separately.
+2. **Bump version** in `main.py` to match the tag.
+3. **Show current tag** and **ask the user what tag to use** (e.g., "Current tag: v0.45.0. What tag for this commit?").
+4. **Write a detailed commit message** — summary line with version and issue reference, then a body listing what changed by category (Database, Backend, Frontend, Tests, Docs).
+5. **Tag and push** — tag the commit, push to remote with tags.
+
+Do not commit without asking for the tag. Do not split code and docs into separate commits.
 
 ## Development Server
 
