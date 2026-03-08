@@ -1,14 +1,24 @@
-"""Service for generating strategy code from plain English using Claude."""
+"""Service for generating and testing strategy code from plain English using Claude."""
 
 import ast
+import importlib
+import importlib.util
 import logging
 import re
+import sys
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import anthropic
+import pandas as pd
 
 from tradingsystem.core.config import settings
-from tradingsystem.strategies.base import BaseStrategy
+from tradingsystem.indicators import IndicatorRegistry, calculate_pandas_ta_indicator
+from tradingsystem.models.signal import Signal
+from tradingsystem.services import series_service
+from tradingsystem.strategies.base import BaseStrategy, StrategyContext
 from tradingsystem.strategies.registry import StrategyRegistry
 
 logger = logging.getLogger(__name__)
@@ -328,4 +338,193 @@ def save_strategy(code: str) -> dict:
         "strategy_id": strategy_id,
         "file_path": str(file_path),
         "registered": registered,
+    }
+
+
+def _load_strategy_from_code(code: str) -> BaseStrategy:
+    """
+    Dynamically load a strategy class from source code and return an instance.
+
+    Uses a temporary file to avoid polluting the module namespace.
+    The strategy is NOT registered in the StrategyRegistry.
+    """
+    strategy_id = _extract_strategy_id(code)
+    if not strategy_id:
+        raise ValueError("Cannot extract strategy_id from code")
+
+    # Write to a temp file so importlib can load it
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", prefix=f"strategy_{strategy_id}_", delete=False
+    ) as f:
+        f.write(code)
+        tmp_path = Path(f.name)
+
+    try:
+        module_name = f"tradingsystem.strategies._test_{strategy_id}"
+        spec = importlib.util.spec_from_file_location(module_name, tmp_path)
+        if spec is None or spec.loader is None:
+            raise ValueError("Failed to create module spec from code")
+
+        module = importlib.util.module_from_spec(spec)
+
+        # Temporarily prevent the @StrategyRegistry.register decorator from
+        # actually registering — we don't want test runs to pollute the registry
+        original_register = StrategyRegistry.register
+
+        def noop_register(name: str):
+            def decorator(cls):
+                return cls
+            return decorator
+
+        StrategyRegistry.register = classmethod(lambda cls, name: noop_register(name))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            StrategyRegistry.register = original_register
+
+        # Find the BaseStrategy subclass in the module
+        strategy_cls = None
+        for attr_name in dir(module):
+            attr = getattr(module, attr_name)
+            if (
+                isinstance(attr, type)
+                and issubclass(attr, BaseStrategy)
+                and attr is not BaseStrategy
+            ):
+                strategy_cls = attr
+                break
+
+        if strategy_cls is None:
+            raise ValueError("No BaseStrategy subclass found in code")
+
+        return strategy_cls()
+
+    finally:
+        tmp_path.unlink(missing_ok=True)
+        # Clean up module from sys.modules
+        module_name = f"tradingsystem.strategies._test_{strategy_id}"
+        sys.modules.pop(module_name, None)
+
+
+async def _calculate_indicators(
+    strategy: BaseStrategy,
+    df: pd.DataFrame,
+) -> dict[str, pd.Series | pd.DataFrame]:
+    """Calculate all required indicators for a strategy instance."""
+    indicators: dict[str, pd.Series | pd.DataFrame] = {}
+
+    for config in strategy.required_indicators:
+        try:
+            custom_cls = IndicatorRegistry.get(config.indicator_type)
+            if custom_cls:
+                instance = custom_cls()
+                result = instance.calculate(df, **config.params)
+            else:
+                result = calculate_pandas_ta_indicator(
+                    df,
+                    config.indicator_type,
+                    **config.params,
+                )
+
+            if result is not None:
+                key = config.column_name or config.indicator_type
+                indicators[key] = result
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate indicator {config.indicator_type}: {e}")
+
+    return indicators
+
+
+async def test_strategy_code(
+    code: str,
+    instrument: str,
+    period: str,
+    limit: int = 200,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> dict[str, Any]:
+    """
+    Test strategy code on historical data without saving.
+
+    Validates the code, loads it dynamically, fetches candles,
+    computes indicators, and runs generate_signals().
+
+    Returns dict with signals, stats, and any errors.
+    """
+    # Validate first
+    errors = validate_strategy_code(code)
+    if errors:
+        raise ValueError(f"Validation failed: {'; '.join(errors)}")
+
+    # Load strategy from code
+    instance = _load_strategy_from_code(code)
+
+    # Fetch historical candles
+    df = await series_service.get_series_dataframe(
+        instrument=instrument,
+        period=period,
+        limit=limit,
+        start=start,
+        end=end,
+    )
+
+    if df.empty:
+        return {
+            "signals": [],
+            "stats": {
+                "total_signals": 0,
+                "buy_signals": 0,
+                "sell_signals": 0,
+                "candles_analyzed": 0,
+            },
+            "strategy_id": _extract_strategy_id(code),
+            "instrument": instrument,
+            "period": period,
+        }
+
+    # Calculate indicators
+    indicators = await _calculate_indicators(instance, df)
+
+    # Build context and generate signals
+    context = StrategyContext(
+        instrument=instrument,
+        period=period,
+        candles=df,
+        indicators=indicators,
+        current_time=datetime.now(timezone.utc),
+        current_price=float(df["close"].iloc[-1]),
+    )
+
+    signals = instance.generate_signals(context)
+
+    # Compute stats
+    buy_count = sum(1 for s in signals if s.signal_type.value == "BUY")
+    sell_count = sum(1 for s in signals if s.signal_type.value == "SELL")
+
+    signal_dicts = []
+    for s in signals:
+        signal_dicts.append({
+            "time": s.time.isoformat(),
+            "signal_type": s.signal_type.value,
+            "strength": s.strength,
+            "reason": s.reason,
+            "metadata": s.metadata,
+        })
+
+    return {
+        "signals": signal_dicts,
+        "stats": {
+            "total_signals": len(signals),
+            "buy_signals": buy_count,
+            "sell_signals": sell_count,
+            "candles_analyzed": len(df),
+            "date_range": {
+                "start": df["time"].iloc[0].isoformat() if "time" in df.columns else None,
+                "end": df["time"].iloc[-1].isoformat() if "time" in df.columns else None,
+            },
+        },
+        "strategy_id": _extract_strategy_id(code),
+        "instrument": instrument,
+        "period": period,
     }

@@ -6,7 +6,10 @@ from tradingsystem.services.strategy_generator_service import (
     validate_strategy_code,
     _extract_strategy_id,
     _extract_class_name,
+    _load_strategy_from_code,
 )
+from tradingsystem.strategies.base import BaseStrategy
+from tradingsystem.strategies.registry import StrategyRegistry
 
 
 VALID_CODE = '''import pandas as pd
@@ -121,3 +124,34 @@ class TestValidateStrategyCode:
         code = "import requests\n" + VALID_CODE
         errors = validate_strategy_code(code)
         assert any("Disallowed import" in e for e in errors)
+
+
+class TestLoadStrategyFromCode:
+    """Tests for _load_strategy_from_code function."""
+
+    def test_loads_valid_strategy(self):
+        """Should load a strategy instance from code."""
+        instance = _load_strategy_from_code(VALID_CODE)
+        assert isinstance(instance, BaseStrategy)
+        assert instance.name == "Test Strategy"
+        assert instance.author == "Generated"
+
+    def test_does_not_register_in_registry(self):
+        """Should NOT register the strategy in StrategyRegistry."""
+        was_registered_before = StrategyRegistry.is_registered("test_strat")
+        _load_strategy_from_code(VALID_CODE)
+        # If it wasn't registered before, it shouldn't be now
+        if not was_registered_before:
+            assert not StrategyRegistry.is_registered("test_strat")
+
+    def test_raises_on_missing_strategy_id(self):
+        """Should raise ValueError when code has no register decorator."""
+        code = VALID_CODE.replace('@StrategyRegistry.register("test_strat")\n', "")
+        with pytest.raises(ValueError, match="Cannot extract strategy_id"):
+            _load_strategy_from_code(code)
+
+    def test_raises_on_invalid_code(self):
+        """Should raise on code that can't be loaded."""
+        code = VALID_CODE.replace("class TestStrategy", "class 123Invalid")
+        with pytest.raises((ValueError, SyntaxError)):
+            _load_strategy_from_code(code)

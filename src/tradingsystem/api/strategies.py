@@ -64,6 +64,17 @@ class SaveStrategyRequest(BaseModel):
     code: str = Field(..., min_length=50, description="Python strategy code to save")
 
 
+class StrategyTestRequest(BaseModel):
+    """Request body for testing strategy code on historical data."""
+
+    code: str = Field(..., min_length=50, description="Python strategy code to test")
+    instrument: str = Field(..., description="Currency pair (e.g., 'EUR_USD')")
+    period: str = Field(default="H1", description="Timeframe (e.g., 'M5', 'H1', 'D')")
+    limit: int = Field(default=200, ge=10, le=1000, description="Number of candles")
+    start: datetime | None = Field(default=None, description="Start date for candle data")
+    end: datetime | None = Field(default=None, description="End date for candle data")
+
+
 @router.post("/generate")
 async def generate_strategy(request: GenerateStrategyRequest) -> dict[str, Any]:
     """
@@ -94,6 +105,30 @@ async def save_strategy(request: SaveStrategyRequest) -> dict[str, Any]:
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/test")
+async def run_strategy_test(request: StrategyTestRequest) -> dict[str, Any]:
+    """
+    Test strategy code on historical data without saving.
+
+    Validates the code, runs it against candles, and returns
+    generated signals and basic stats. No side effects.
+    """
+    try:
+        result = await strategy_generator_service.test_strategy_code(
+            code=request.code,
+            instrument=request.instrument,
+            period=request.period,
+            limit=request.limit,
+            start=request.start,
+            end=request.end,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Strategy test failed: {e}")
 
 
 @router.get("")

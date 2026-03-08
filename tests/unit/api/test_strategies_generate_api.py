@@ -1,4 +1,4 @@
-"""Tests for strategy generate/save API endpoints."""
+"""Tests for strategy generate/save/test API endpoints."""
 
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -6,8 +6,12 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from tradingsystem.api.strategies import generate_strategy, save_strategy
-from tradingsystem.api.strategies import GenerateStrategyRequest, SaveStrategyRequest
+from tradingsystem.api.strategies import generate_strategy, save_strategy, run_strategy_test
+from tradingsystem.api.strategies import (
+    GenerateStrategyRequest,
+    SaveStrategyRequest,
+    StrategyTestRequest,
+)
 
 
 VALID_CODE = '''import pandas as pd
@@ -123,3 +127,77 @@ class TestSaveStrategy:
                 await save_strategy(request)
 
             assert exc.value.status_code == 400
+
+
+class TestRunStrategyTest:
+    @pytest.mark.asyncio
+    async def test_returns_results(self):
+        """Should return signals and stats."""
+        mock_result = {
+            "signals": [
+                {"time": "2026-01-01T00:00:00", "signal_type": "BUY", "strength": 0.8,
+                 "reason": "test", "metadata": {}},
+            ],
+            "stats": {
+                "total_signals": 1,
+                "buy_signals": 1,
+                "sell_signals": 0,
+                "candles_analyzed": 200,
+            },
+            "strategy_id": "generated_test",
+            "instrument": "EUR_USD",
+            "period": "H1",
+        }
+        with patch(
+            "tradingsystem.api.strategies.strategy_generator_service"
+        ) as mock_service:
+            mock_service.test_strategy_code = AsyncMock(return_value=mock_result)
+
+            request = StrategyTestRequest(
+                code=VALID_CODE,
+                instrument="EUR_USD",
+                period="H1",
+            )
+            result = await run_strategy_test(request)
+
+            assert result["stats"]["total_signals"] == 1
+            assert result["stats"]["buy_signals"] == 1
+            assert len(result["signals"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_returns_400_on_validation_error(self):
+        """Should return 400 when code fails validation."""
+        with patch(
+            "tradingsystem.api.strategies.strategy_generator_service"
+        ) as mock_service:
+            mock_service.test_strategy_code = AsyncMock(
+                side_effect=ValueError("Validation failed")
+            )
+
+            request = StrategyTestRequest(
+                code=VALID_CODE,
+                instrument="EUR_USD",
+            )
+            with pytest.raises(HTTPException) as exc:
+                await run_strategy_test(request)
+
+            assert exc.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_returns_500_on_runtime_error(self):
+        """Should return 500 when strategy execution fails."""
+        with patch(
+            "tradingsystem.api.strategies.strategy_generator_service"
+        ) as mock_service:
+            mock_service.test_strategy_code = AsyncMock(
+                side_effect=RuntimeError("indicator calculation failed")
+            )
+
+            request = StrategyTestRequest(
+                code=VALID_CODE,
+                instrument="EUR_USD",
+            )
+            with pytest.raises(HTTPException) as exc:
+                await run_strategy_test(request)
+
+            assert exc.value.status_code == 500
