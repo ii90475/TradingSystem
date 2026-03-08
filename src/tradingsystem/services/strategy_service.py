@@ -11,6 +11,7 @@ from tradingsystem.models.signal import Signal
 from tradingsystem.services import series_service, signal_service
 from tradingsystem.strategies.base import BaseStrategy, StrategyContext
 from tradingsystem.strategies.registry import StrategyRegistry, discover_builtin_strategies
+from tradingsystem.services.strategy_generator_service import USER_STRATEGIES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,15 @@ def initialize_strategies() -> int:
     """
     ensure_initialized()  # Initialize indicators
     count = discover_builtin_strategies()
-    logger.info(f"Initialized {count} built-in strategies")
+
+    # Also discover user-generated strategies
+    if USER_STRATEGIES_DIR.exists():
+        generated_count = StrategyRegistry.discover_strategies(USER_STRATEGIES_DIR)
+        count += generated_count
+        if generated_count:
+            logger.info(f"Loaded {generated_count} generated strategies")
+
+    logger.info(f"Initialized {count} strategies total")
     return count
 
 

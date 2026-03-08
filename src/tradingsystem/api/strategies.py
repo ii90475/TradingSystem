@@ -4,10 +4,11 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from tradingsystem.models.signal import Signal
 from tradingsystem.services import strategy_service
+from tradingsystem.services import strategy_generator_service
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -47,6 +48,52 @@ class RunOnceRequest(BaseModel):
     limit: int = 100
     start: datetime | None = None
     end: datetime | None = None
+
+
+class GenerateStrategyRequest(BaseModel):
+    """Request body for generating a strategy from plain English."""
+
+    description: str = Field(
+        ..., min_length=10, description="Plain English description of entry/exit conditions"
+    )
+
+
+class SaveStrategyRequest(BaseModel):
+    """Request body for saving reviewed strategy code."""
+
+    code: str = Field(..., min_length=50, description="Python strategy code to save")
+
+
+@router.post("/generate")
+async def generate_strategy(request: GenerateStrategyRequest) -> dict[str, Any]:
+    """
+    Generate strategy code from a plain English description.
+
+    Calls Claude to produce a BaseStrategy subclass. Returns the code
+    for review before saving.
+    """
+    try:
+        result = await strategy_generator_service.generate_strategy(request.description)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Strategy generation failed: {e}")
+
+
+@router.post("/save", status_code=201)
+async def save_strategy(request: SaveStrategyRequest) -> dict[str, Any]:
+    """
+    Save reviewed strategy code to the strategies directory.
+
+    Validates the code follows the BaseStrategy pattern, writes to disk,
+    and registers in the StrategyRegistry.
+    """
+    try:
+        result = strategy_generator_service.save_strategy(request.code)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("")

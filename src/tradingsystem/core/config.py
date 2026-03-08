@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     oanda_account_id: str = ""
     oanda_api_url: str = "https://api-fxtrade.oanda.com"
 
+    # Anthropic API (for strategy generation)
+    anthropic_api_key: str = ""
+
     # Trading parameters
     paper_trading_enabled: bool = True
     live_trading_enabled: bool = False
