@@ -7,8 +7,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from tradingsystem.models.series import SeriesIndicator, SeriesIndicatorCreate
-from tradingsystem.services import series_service, indicator_service
+from tradingsystem.models.chart import ChartIndicator, ChartIndicatorCreate
+from tradingsystem.services import chart_service, indicator_service
 
 router = APIRouter(prefix="/indicators", tags=["indicators"])
 
@@ -82,36 +82,36 @@ async def calculate_indicator(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# Series-indicator endpoints
-@router.get("/series/{series_id}", response_model=list[SeriesIndicator])
-async def get_series_indicators(series_id: UUID) -> list[SeriesIndicator]:
-    """Get all indicators configured for a series."""
-    series = await series_service.get_series(series_id)
-    if not series:
-        raise HTTPException(status_code=404, detail="Series not found")
+# Chart-indicator endpoints
+@router.get("/chart/{chart_id}", response_model=list[ChartIndicator])
+async def get_chart_indicators(chart_id: UUID) -> list[ChartIndicator]:
+    """Get all indicators configured for a chart."""
+    chart = await chart_service.get_chart(chart_id)
+    if not chart:
+        raise HTTPException(status_code=404, detail="Chart not found")
 
-    return await indicator_service.get_series_indicators(series_id)
+    return await indicator_service.get_chart_indicators(chart_id)
 
 
-@router.post("/series/{series_id}", response_model=SeriesIndicator, status_code=201)
-async def add_indicator_to_series(
-    series_id: UUID,
-    indicator: SeriesIndicatorCreate,
-) -> SeriesIndicator:
-    """Add an indicator to a series configuration."""
-    series = await series_service.get_series(series_id)
-    if not series:
-        raise HTTPException(status_code=404, detail="Series not found")
+@router.post("/chart/{chart_id}", response_model=ChartIndicator, status_code=201)
+async def add_indicator_to_chart(
+    chart_id: UUID,
+    indicator: ChartIndicatorCreate,
+) -> ChartIndicator:
+    """Add an indicator to a chart."""
+    chart = await chart_service.get_chart(chart_id)
+    if not chart:
+        raise HTTPException(status_code=404, detail="Chart not found")
 
     try:
-        return await indicator_service.add_indicator_to_series(series_id, indicator)
+        return await indicator_service.add_indicator_to_chart(chart_id, indicator)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/series-indicator/{indicator_id}", status_code=204)
-async def delete_series_indicator(indicator_id: UUID) -> None:
-    """Delete an indicator from a series."""
-    deleted = await indicator_service.delete_series_indicator(indicator_id)
+@router.delete("/chart-indicator/{indicator_id}", status_code=204)
+async def delete_chart_indicator(indicator_id: UUID) -> None:
+    """Delete an indicator from a chart."""
+    deleted = await indicator_service.delete_chart_indicator(indicator_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Indicator not found")

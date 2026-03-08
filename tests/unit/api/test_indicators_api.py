@@ -8,14 +8,15 @@ import pytest
 from fastapi import HTTPException
 
 from tradingsystem.api.indicators import (
-    add_indicator_to_series,
+    add_indicator_to_chart,
     calculate_indicator,
-    delete_series_indicator,
-    get_series_indicators,
+    delete_chart_indicator,
+    get_chart_indicators,
     get_indicator_info,
     list_available_indicators,
 )
-from tradingsystem.models.series import Series, SeriesIndicator, SeriesIndicatorCreate
+from tradingsystem.models.chart import Chart, ChartIndicator, ChartIndicatorCreate
+from tradingsystem.models.series import Series
 
 
 # --- Fixtures ---
@@ -33,11 +34,22 @@ def sample_series():
 
 
 @pytest.fixture
-def sample_indicator():
-    """Create sample series indicator."""
-    return SeriesIndicator(
+def sample_chart(sample_series):
+    """Create sample chart."""
+    return Chart(
         id=uuid4(),
-        series_id=uuid4(),
+        name="EUR_USD · 1h",
+        series_id=sample_series.id,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def sample_indicator(sample_chart):
+    """Create sample chart indicator."""
+    return ChartIndicator(
+        id=uuid4(),
+        chart_id=sample_chart.id,
         indicator_type="sma",
         parameters={"length": 20},
         created_at=datetime.now(timezone.utc),
@@ -213,114 +225,114 @@ class TestCalculateIndicator:
             assert call_kwargs["end"] == end
 
 
-# --- get_series_indicators Tests ---
+# --- get_chart_indicators Tests ---
 
 
-class TestGetSeriesIndicators:
-    """Tests for get_series_indicators endpoint."""
+class TestGetChartIndicators:
+    """Tests for get_chart_indicators endpoint."""
 
     @pytest.mark.asyncio
-    async def test_returns_indicators(self, sample_series, sample_indicator):
-        """Should return series indicators."""
-        with patch("tradingsystem.api.indicators.series_service") as mock_series, \
+    async def test_returns_indicators(self, sample_chart, sample_indicator):
+        """Should return chart indicators."""
+        with patch("tradingsystem.api.indicators.chart_service") as mock_chart, \
              patch("tradingsystem.api.indicators.indicator_service") as mock_indicator:
-            mock_series.get_series = AsyncMock(return_value=sample_series)
-            mock_indicator.get_series_indicators = AsyncMock(return_value=[sample_indicator])
+            mock_chart.get_chart = AsyncMock(return_value=sample_chart)
+            mock_indicator.get_chart_indicators = AsyncMock(return_value=[sample_indicator])
 
-            result = await get_series_indicators(sample_series.id)
+            result = await get_chart_indicators(sample_chart.id)
 
             assert len(result) == 1
             assert result[0].indicator_type == "sma"
 
     @pytest.mark.asyncio
-    async def test_raises_404_when_series_not_found(self):
-        """Should raise 404 when series not found."""
-        with patch("tradingsystem.api.indicators.series_service") as mock_series:
-            mock_series.get_series = AsyncMock(return_value=None)
+    async def test_raises_404_when_chart_not_found(self):
+        """Should raise 404 when chart not found."""
+        with patch("tradingsystem.api.indicators.chart_service") as mock_chart:
+            mock_chart.get_chart = AsyncMock(return_value=None)
 
             with pytest.raises(HTTPException) as exc_info:
-                await get_series_indicators(uuid4())
+                await get_chart_indicators(uuid4())
 
             assert exc_info.value.status_code == 404
 
 
-# --- add_indicator_to_series Tests ---
+# --- add_indicator_to_chart Tests ---
 
 
-class TestAddIndicatorToSeries:
-    """Tests for add_indicator_to_series endpoint."""
+class TestAddIndicatorToChart:
+    """Tests for add_indicator_to_chart endpoint."""
 
     @pytest.mark.asyncio
-    async def test_adds_indicator(self, sample_series, sample_indicator):
-        """Should add indicator to series."""
-        with patch("tradingsystem.api.indicators.series_service") as mock_series, \
+    async def test_adds_indicator(self, sample_chart, sample_indicator):
+        """Should add indicator to chart."""
+        with patch("tradingsystem.api.indicators.chart_service") as mock_chart, \
              patch("tradingsystem.api.indicators.indicator_service") as mock_indicator:
-            mock_series.get_series = AsyncMock(return_value=sample_series)
-            mock_indicator.add_indicator_to_series = AsyncMock(return_value=sample_indicator)
+            mock_chart.get_chart = AsyncMock(return_value=sample_chart)
+            mock_indicator.add_indicator_to_chart = AsyncMock(return_value=sample_indicator)
 
-            indicator_create = SeriesIndicatorCreate(
+            indicator_create = ChartIndicatorCreate(
                 indicator_type="sma",
                 parameters={"length": 20},
             )
-            result = await add_indicator_to_series(sample_series.id, indicator_create)
+            result = await add_indicator_to_chart(sample_chart.id, indicator_create)
 
             assert result.indicator_type == "sma"
 
     @pytest.mark.asyncio
-    async def test_raises_404_when_series_not_found(self):
-        """Should raise 404 when series not found."""
-        with patch("tradingsystem.api.indicators.series_service") as mock_series:
-            mock_series.get_series = AsyncMock(return_value=None)
+    async def test_raises_404_when_chart_not_found(self):
+        """Should raise 404 when chart not found."""
+        with patch("tradingsystem.api.indicators.chart_service") as mock_chart:
+            mock_chart.get_chart = AsyncMock(return_value=None)
 
-            indicator_create = SeriesIndicatorCreate(indicator_type="sma", parameters={})
+            indicator_create = ChartIndicatorCreate(indicator_type="sma", parameters={})
 
             with pytest.raises(HTTPException) as exc_info:
-                await add_indicator_to_series(uuid4(), indicator_create)
+                await add_indicator_to_chart(uuid4(), indicator_create)
 
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_raises_400_for_invalid_indicator(self, sample_series):
+    async def test_raises_400_for_invalid_indicator(self, sample_chart):
         """Should raise 400 for invalid indicator."""
-        with patch("tradingsystem.api.indicators.series_service") as mock_series, \
+        with patch("tradingsystem.api.indicators.chart_service") as mock_chart, \
              patch("tradingsystem.api.indicators.indicator_service") as mock_indicator:
-            mock_series.get_series = AsyncMock(return_value=sample_series)
-            mock_indicator.add_indicator_to_series = AsyncMock(
+            mock_chart.get_chart = AsyncMock(return_value=sample_chart)
+            mock_indicator.add_indicator_to_chart = AsyncMock(
                 side_effect=ValueError("Unknown indicator")
             )
 
-            indicator_create = SeriesIndicatorCreate(indicator_type="unknown", parameters={})
+            indicator_create = ChartIndicatorCreate(indicator_type="unknown", parameters={})
 
             with pytest.raises(HTTPException) as exc_info:
-                await add_indicator_to_series(sample_series.id, indicator_create)
+                await add_indicator_to_chart(sample_chart.id, indicator_create)
 
             assert exc_info.value.status_code == 400
 
 
-# --- delete_series_indicator Tests ---
+# --- delete_chart_indicator Tests ---
 
 
-class TestDeleteSeriesIndicator:
-    """Tests for delete_series_indicator endpoint."""
+class TestDeleteChartIndicator:
+    """Tests for delete_chart_indicator endpoint."""
 
     @pytest.mark.asyncio
     async def test_deletes_indicator(self):
         """Should delete indicator."""
         with patch("tradingsystem.api.indicators.indicator_service") as mock_service:
-            mock_service.delete_series_indicator = AsyncMock(return_value=True)
+            mock_service.delete_chart_indicator = AsyncMock(return_value=True)
 
             # Should not raise
-            await delete_series_indicator(uuid4())
+            await delete_chart_indicator(uuid4())
 
-            mock_service.delete_series_indicator.assert_called_once()
+            mock_service.delete_chart_indicator.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_raises_404_when_not_found(self):
         """Should raise 404 when indicator not found."""
         with patch("tradingsystem.api.indicators.indicator_service") as mock_service:
-            mock_service.delete_series_indicator = AsyncMock(return_value=False)
+            mock_service.delete_chart_indicator = AsyncMock(return_value=False)
 
             with pytest.raises(HTTPException) as exc_info:
-                await delete_series_indicator(uuid4())
+                await delete_chart_indicator(uuid4())
 
             assert exc_info.value.status_code == 404

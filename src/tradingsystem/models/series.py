@@ -22,18 +22,3 @@ class Series(BaseModel):
     created_at: datetime
 
 
-class SeriesIndicatorCreate(BaseModel):
-    """Request model for adding an indicator to a series."""
-
-    indicator_type: str
-    parameters: dict = {}
-
-
-class SeriesIndicator(BaseModel):
-    """Indicator configuration on a series."""
-
-    id: UUID
-    series_id: UUID
-    indicator_type: str
-    parameters: dict
-    created_at: datetime

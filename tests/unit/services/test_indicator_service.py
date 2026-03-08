@@ -7,7 +7,7 @@ from uuid import uuid4
 import pandas as pd
 import pytest
 
-from tradingsystem.models.series import SeriesIndicator, SeriesIndicatorCreate
+from tradingsystem.models.chart import ChartIndicator, ChartIndicatorCreate
 from tradingsystem.services import indicator_service
 
 
@@ -32,7 +32,7 @@ def sample_indicator():
     """Create sample indicator data."""
     return {
         "id": uuid4(),
-        "series_id": uuid4(),
+        "chart_id": uuid4(),
         "indicator_type": "sma",
         "parameters": {"length": 20},
         "created_at": datetime.now(timezone.utc),
@@ -52,11 +52,11 @@ def sample_ohlcv():
     }, index=dates)
 
 
-# --- add_indicator_to_series Tests ---
+# --- add_indicator_to_chart Tests ---
 
 
-class TestAddIndicatorToSeries:
-    """Tests for add_indicator_to_series function."""
+class TestAddIndicatorToChart:
+    """Tests for add_indicator_to_chart function."""
 
     @pytest.mark.asyncio
     async def test_adds_indicator(self, mock_cursor, sample_indicator):
@@ -70,15 +70,15 @@ class TestAddIndicatorToSeries:
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
             mock_registry.is_registered.return_value = True
 
-            series_id = uuid4()
-            indicator = SeriesIndicatorCreate(
+            chart_id = uuid4()
+            indicator = ChartIndicatorCreate(
                 indicator_type="sma",
                 parameters={"length": 20},
             )
 
-            result = await indicator_service.add_indicator_to_series(series_id, indicator)
+            result = await indicator_service.add_indicator_to_chart(chart_id, indicator)
 
-            assert isinstance(result, SeriesIndicator)
+            assert isinstance(result, ChartIndicator)
             assert result.indicator_type == "sma"
 
     @pytest.mark.asyncio
@@ -88,21 +88,21 @@ class TestAddIndicatorToSeries:
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry:
             mock_registry.is_registered.return_value = False
 
-            series_id = uuid4()
-            indicator = SeriesIndicatorCreate(
+            chart_id = uuid4()
+            indicator = ChartIndicatorCreate(
                 indicator_type="unknown_indicator",
                 parameters={},
             )
 
             with pytest.raises(ValueError, match="Unknown indicator"):
-                await indicator_service.add_indicator_to_series(series_id, indicator)
+                await indicator_service.add_indicator_to_chart(chart_id, indicator)
 
 
-# --- get_series_indicators Tests ---
+# --- get_chart_indicators Tests ---
 
 
-class TestGetSeriesIndicators:
-    """Tests for get_series_indicators function."""
+class TestGetChartIndicators:
+    """Tests for get_chart_indicators function."""
 
     @pytest.mark.asyncio
     async def test_returns_indicators(self, mock_cursor, sample_indicator):
@@ -113,10 +113,10 @@ class TestGetSeriesIndicators:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.get_series_indicators(sample_indicator["series_id"])
+            result = await indicator_service.get_chart_indicators(sample_indicator["chart_id"])
 
             assert len(result) == 1
-            assert isinstance(result[0], SeriesIndicator)
+            assert isinstance(result[0], ChartIndicator)
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_when_none(self, mock_cursor):
@@ -127,16 +127,16 @@ class TestGetSeriesIndicators:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.get_series_indicators(uuid4())
+            result = await indicator_service.get_chart_indicators(uuid4())
 
             assert result == []
 
 
-# --- delete_series_indicator Tests ---
+# --- delete_chart_indicator Tests ---
 
 
-class TestDeleteSeriesIndicator:
-    """Tests for delete_series_indicator function."""
+class TestDeleteChartIndicator:
+    """Tests for delete_chart_indicator function."""
 
     @pytest.mark.asyncio
     async def test_returns_true_when_deleted(self, mock_cursor):
@@ -147,7 +147,7 @@ class TestDeleteSeriesIndicator:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.delete_series_indicator(uuid4())
+            result = await indicator_service.delete_chart_indicator(uuid4())
 
             assert result is True
 
@@ -160,7 +160,7 @@ class TestDeleteSeriesIndicator:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.delete_series_indicator(uuid4())
+            result = await indicator_service.delete_chart_indicator(uuid4())
 
             assert result is False
 

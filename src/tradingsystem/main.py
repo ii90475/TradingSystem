@@ -27,6 +27,7 @@ from tradingsystem.services.monitoring_service import monitoring_service
 from tradingsystem.services.twilio_handler import twilio_handler
 from tradingsystem.api import (
     series_router,
+    charts_router,
     indicators_router,
     strategies_router,
     strategy_instances_router,
@@ -121,7 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.43.0",
+    version="0.45.0",
     lifespan=lifespan,
 )
 
@@ -136,6 +137,7 @@ app.add_middleware(
 
 # Register API routers (original paths for backward compatibility)
 app.include_router(series_router)
+app.include_router(charts_router)
 app.include_router(indicators_router)
 app.include_router(strategies_router)
 app.include_router(strategy_instances_router)
@@ -150,6 +152,7 @@ app.include_router(session_router)
 
 # Also register with /api prefix for frontend
 app.include_router(series_router, prefix="/api")
+app.include_router(charts_router, prefix="/api")
 app.include_router(indicators_router, prefix="/api")
 app.include_router(strategies_router, prefix="/api")
 app.include_router(strategy_instances_router, prefix="/api")
@@ -242,6 +245,7 @@ async def root() -> dict:
             "api": {
                 "dashboard": "/api/dashboard",
                 "series": "/api/series",
+                "charts": "/api/charts",
                 "rates": "/api/rates",
                 "indicators": "/api/indicators",
                 "strategies": "/api/strategies",

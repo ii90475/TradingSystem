@@ -103,40 +103,64 @@ async def init_schema() -> None:
                 );
             """)
 
-            # Migrate from charts to series if charts table exists
+            # Charts (named views on a Series)
             await cur.execute("""
-                DO $$
-                BEGIN
-                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'charts') THEN
-                        INSERT INTO series (id, instrument, period, created_at)
-                        SELECT id, instrument, period, created_at FROM charts
-                        ON CONFLICT (instrument, period) DO NOTHING;
-                    END IF;
-                END $$;
-            """)
-
-            # Indicator configurations per series
-            await cur.execute("""
-                CREATE TABLE IF NOT EXISTS chart_indicators (
+                CREATE TABLE IF NOT EXISTS charts (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    series_id UUID REFERENCES series(id) ON DELETE CASCADE,
-                    indicator_type TEXT NOT NULL,
-                    parameters JSONB NOT NULL DEFAULT '{}',
+                    name TEXT NOT NULL,
+                    series_id UUID NOT NULL REFERENCES series(id) ON DELETE CASCADE,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """)
 
-            # Migrate chart_id -> series_id if old column exists
+            # Migrate: create default charts for series that have chart_indicators
+            # but no chart yet (transition from series_id → chart_id)
             await cur.execute("""
                 DO $$
                 BEGIN
                     IF EXISTS (
                         SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'chart_indicators' AND column_name = 'chart_id'
+                        WHERE table_name = 'chart_indicators' AND column_name = 'series_id'
                     ) THEN
-                        ALTER TABLE chart_indicators RENAME COLUMN chart_id TO series_id;
+                        -- Create a default chart for each series that has indicators
+                        INSERT INTO charts (id, name, series_id, created_at)
+                        SELECT DISTINCT gen_random_uuid(),
+                               s.instrument || ' · ' || s.period,
+                               s.id,
+                               NOW()
+                        FROM chart_indicators ci
+                        JOIN series s ON s.id = ci.series_id
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM charts c WHERE c.series_id = s.id
+                        );
+
+                        -- Add chart_id column
+                        ALTER TABLE chart_indicators ADD COLUMN chart_id UUID;
+
+                        -- Set chart_id from the default chart for each series
+                        UPDATE chart_indicators ci
+                        SET chart_id = c.id
+                        FROM charts c
+                        WHERE c.series_id = ci.series_id;
+
+                        -- Drop old series_id column and add FK
+                        ALTER TABLE chart_indicators DROP COLUMN series_id;
+                        ALTER TABLE chart_indicators
+                            ADD CONSTRAINT fk_chart_indicators_chart
+                            FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE;
                     END IF;
                 END $$;
+            """)
+
+            # Indicator configurations per chart
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS chart_indicators (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    chart_id UUID REFERENCES charts(id) ON DELETE CASCADE,
+                    indicator_type TEXT NOT NULL,
+                    parameters JSONB NOT NULL DEFAULT '{}',
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
             """)
 
             # Calculated indicator values (hypertable)

@@ -13,25 +13,25 @@ from tradingsystem.indicators import (
     calculate_pandas_ta_indicator,
     ensure_initialized,
 )
-from tradingsystem.models.series import SeriesIndicator, SeriesIndicatorCreate
+from tradingsystem.models.chart import ChartIndicator, ChartIndicatorCreate
 from tradingsystem.services import series_service
 
 logger = logging.getLogger(__name__)
 
 
-async def add_indicator_to_series(
-    series_id: UUID,
-    indicator: SeriesIndicatorCreate,
-) -> SeriesIndicator:
+async def add_indicator_to_chart(
+    chart_id: UUID,
+    indicator: ChartIndicatorCreate,
+) -> ChartIndicator:
     """
-    Add an indicator configuration to a series.
+    Add an indicator configuration to a chart.
 
     Args:
-        series_id: Series UUID
+        chart_id: Chart UUID
         indicator: Indicator configuration
 
     Returns:
-        Created SeriesIndicator
+        Created ChartIndicator
     """
     # Verify indicator exists
     ensure_initialized()
@@ -41,11 +41,11 @@ async def add_indicator_to_series(
     async with get_cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO chart_indicators (series_id, indicator_type, parameters)
+            INSERT INTO chart_indicators (chart_id, indicator_type, parameters)
             VALUES (%s, %s, %s)
-            RETURNING id, series_id, indicator_type, parameters, created_at
+            RETURNING id, chart_id, indicator_type, parameters, created_at
             """,
-            (series_id, indicator.indicator_type, indicator.parameters),
+            (chart_id, indicator.indicator_type, indicator.parameters),
         )
         row = await cur.fetchone()
         await cur.connection.commit()
@@ -55,32 +55,32 @@ async def add_indicator_to_series(
             extra={
                 "event": "indicator",
                 "action": "add",
-                "series_id": str(series_id),
+                "chart_id": str(chart_id),
                 "indicator_type": indicator.indicator_type,
             },
         )
 
-        return SeriesIndicator(**row)
+        return ChartIndicator(**row)
 
 
-async def get_series_indicators(series_id: UUID) -> list[SeriesIndicator]:
-    """Get all indicators configured for a series."""
+async def get_chart_indicators(chart_id: UUID) -> list[ChartIndicator]:
+    """Get all indicators configured for a chart."""
     async with get_cursor() as cur:
         await cur.execute(
             """
-            SELECT id, series_id, indicator_type, parameters, created_at
+            SELECT id, chart_id, indicator_type, parameters, created_at
             FROM chart_indicators
-            WHERE series_id = %s
+            WHERE chart_id = %s
             ORDER BY created_at
             """,
-            (series_id,),
+            (chart_id,),
         )
         rows = await cur.fetchall()
-        return [SeriesIndicator(**row) for row in rows]
+        return [ChartIndicator(**row) for row in rows]
 
 
-async def delete_series_indicator(indicator_id: UUID) -> bool:
-    """Delete a series indicator configuration."""
+async def delete_chart_indicator(indicator_id: UUID) -> bool:
+    """Delete a chart indicator configuration."""
     async with get_cursor() as cur:
         await cur.execute(
             "DELETE FROM chart_indicators WHERE id = %s",
