@@ -156,10 +156,10 @@ class ChartManager {
         try {
             // Try to get chart data from API
             console.log(`Loading chart for ${instrument} ${period}`);
-            const chartData = await api.getChartByInstrument(instrument, period);
-            console.log('Chart data:', chartData);
+            const seriesData = await api.getSeriesByInstrument(instrument, period);
+            console.log('Series data:', seriesData);
 
-            const candles = await api.getChartCandles(chartData.id, null, null, 200);
+            const candles = await api.getSeriesCandles(seriesData.id, null, null, 200);
             console.log(`Loaded ${candles.length} candles, latest:`, candles[0]);
 
             this.setData(candles, true);

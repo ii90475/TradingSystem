@@ -92,9 +92,9 @@ async def init_schema() -> None:
     """Initialize the database schema for TradingSystem."""
     async with get_connection() as conn:
         async with conn.cursor() as cur:
-            # Charts (metadata only - candles come from RateService)
+            # Series (instrument + period OHLCV data streams)
             await cur.execute("""
-                CREATE TABLE IF NOT EXISTS charts (
+                CREATE TABLE IF NOT EXISTS series (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     instrument TEXT NOT NULL,
                     period TEXT NOT NULL,
@@ -103,15 +103,40 @@ async def init_schema() -> None:
                 );
             """)
 
-            # Indicator configurations per chart
+            # Migrate from charts to series if charts table exists
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'charts') THEN
+                        INSERT INTO series (id, instrument, period, created_at)
+                        SELECT id, instrument, period, created_at FROM charts
+                        ON CONFLICT (instrument, period) DO NOTHING;
+                    END IF;
+                END $$;
+            """)
+
+            # Indicator configurations per series
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS chart_indicators (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    chart_id UUID REFERENCES charts(id) ON DELETE CASCADE,
+                    series_id UUID REFERENCES series(id) ON DELETE CASCADE,
                     indicator_type TEXT NOT NULL,
                     parameters JSONB NOT NULL DEFAULT '{}',
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
+            """)
+
+            # Migrate chart_id -> series_id if old column exists
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'chart_indicators' AND column_name = 'chart_id'
+                    ) THEN
+                        ALTER TABLE chart_indicators RENAME COLUMN chart_id TO series_id;
+                    END IF;
+                END $$;
             """)
 
             # Calculated indicator values (hypertable)

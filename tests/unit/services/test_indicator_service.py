@@ -7,7 +7,7 @@ from uuid import uuid4
 import pandas as pd
 import pytest
 
-from tradingsystem.models.chart import ChartIndicator, ChartIndicatorCreate
+from tradingsystem.models.series import SeriesIndicator, SeriesIndicatorCreate
 from tradingsystem.services import indicator_service
 
 
@@ -32,7 +32,7 @@ def sample_indicator():
     """Create sample indicator data."""
     return {
         "id": uuid4(),
-        "chart_id": uuid4(),
+        "series_id": uuid4(),
         "indicator_type": "sma",
         "parameters": {"length": 20},
         "created_at": datetime.now(timezone.utc),
@@ -52,11 +52,11 @@ def sample_ohlcv():
     }, index=dates)
 
 
-# --- add_indicator_to_chart Tests ---
+# --- add_indicator_to_series Tests ---
 
 
-class TestAddIndicatorToChart:
-    """Tests for add_indicator_to_chart function."""
+class TestAddIndicatorToSeries:
+    """Tests for add_indicator_to_series function."""
 
     @pytest.mark.asyncio
     async def test_adds_indicator(self, mock_cursor, sample_indicator):
@@ -70,15 +70,15 @@ class TestAddIndicatorToChart:
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
             mock_registry.is_registered.return_value = True
 
-            chart_id = uuid4()
-            indicator = ChartIndicatorCreate(
+            series_id = uuid4()
+            indicator = SeriesIndicatorCreate(
                 indicator_type="sma",
                 parameters={"length": 20},
             )
 
-            result = await indicator_service.add_indicator_to_chart(chart_id, indicator)
+            result = await indicator_service.add_indicator_to_series(series_id, indicator)
 
-            assert isinstance(result, ChartIndicator)
+            assert isinstance(result, SeriesIndicator)
             assert result.indicator_type == "sma"
 
     @pytest.mark.asyncio
@@ -88,21 +88,21 @@ class TestAddIndicatorToChart:
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry:
             mock_registry.is_registered.return_value = False
 
-            chart_id = uuid4()
-            indicator = ChartIndicatorCreate(
+            series_id = uuid4()
+            indicator = SeriesIndicatorCreate(
                 indicator_type="unknown_indicator",
                 parameters={},
             )
 
             with pytest.raises(ValueError, match="Unknown indicator"):
-                await indicator_service.add_indicator_to_chart(chart_id, indicator)
+                await indicator_service.add_indicator_to_series(series_id, indicator)
 
 
-# --- get_chart_indicators Tests ---
+# --- get_series_indicators Tests ---
 
 
-class TestGetChartIndicators:
-    """Tests for get_chart_indicators function."""
+class TestGetSeriesIndicators:
+    """Tests for get_series_indicators function."""
 
     @pytest.mark.asyncio
     async def test_returns_indicators(self, mock_cursor, sample_indicator):
@@ -113,10 +113,10 @@ class TestGetChartIndicators:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.get_chart_indicators(sample_indicator["chart_id"])
+            result = await indicator_service.get_series_indicators(sample_indicator["series_id"])
 
             assert len(result) == 1
-            assert isinstance(result[0], ChartIndicator)
+            assert isinstance(result[0], SeriesIndicator)
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_when_none(self, mock_cursor):
@@ -127,16 +127,16 @@ class TestGetChartIndicators:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.get_chart_indicators(uuid4())
+            result = await indicator_service.get_series_indicators(uuid4())
 
             assert result == []
 
 
-# --- delete_chart_indicator Tests ---
+# --- delete_series_indicator Tests ---
 
 
-class TestDeleteChartIndicator:
-    """Tests for delete_chart_indicator function."""
+class TestDeleteSeriesIndicator:
+    """Tests for delete_series_indicator function."""
 
     @pytest.mark.asyncio
     async def test_returns_true_when_deleted(self, mock_cursor):
@@ -147,7 +147,7 @@ class TestDeleteChartIndicator:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.delete_chart_indicator(uuid4())
+            result = await indicator_service.delete_series_indicator(uuid4())
 
             assert result is True
 
@@ -160,7 +160,7 @@ class TestDeleteChartIndicator:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await indicator_service.delete_chart_indicator(uuid4())
+            result = await indicator_service.delete_series_indicator(uuid4())
 
             assert result is False
 
@@ -178,9 +178,9 @@ class TestCalculateIndicator:
         mock_indicator.calculate.return_value = pd.Series([1.0] * 50, index=sample_ohlcv.index)
 
         with patch("tradingsystem.services.indicator_service.ensure_initialized"), \
-             patch("tradingsystem.services.indicator_service.chart_service") as mock_chart, \
+             patch("tradingsystem.services.indicator_service.series_service") as mock_chart, \
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry:
-            mock_chart.get_chart_dataframe = AsyncMock(return_value=sample_ohlcv)
+            mock_chart.get_series_dataframe = AsyncMock(return_value=sample_ohlcv)
             mock_registry.get.return_value = lambda: mock_indicator
 
             result = await indicator_service.calculate_indicator(
@@ -196,10 +196,10 @@ class TestCalculateIndicator:
     async def test_calculates_pandas_ta_indicator(self, sample_ohlcv):
         """Should calculate pandas-ta indicator."""
         with patch("tradingsystem.services.indicator_service.ensure_initialized"), \
-             patch("tradingsystem.services.indicator_service.chart_service") as mock_chart, \
+             patch("tradingsystem.services.indicator_service.series_service") as mock_chart, \
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry, \
              patch("tradingsystem.services.indicator_service.calculate_pandas_ta_indicator") as mock_calc:
-            mock_chart.get_chart_dataframe = AsyncMock(return_value=sample_ohlcv)
+            mock_chart.get_series_dataframe = AsyncMock(return_value=sample_ohlcv)
             mock_registry.get.return_value = None  # Not a custom indicator
             mock_calc.return_value = pd.Series([1.0] * 50, index=sample_ohlcv.index)
 
@@ -217,8 +217,8 @@ class TestCalculateIndicator:
     async def test_returns_empty_values_when_no_data(self):
         """Should return empty values when no candle data."""
         with patch("tradingsystem.services.indicator_service.ensure_initialized"), \
-             patch("tradingsystem.services.indicator_service.chart_service") as mock_chart:
-            mock_chart.get_chart_dataframe = AsyncMock(return_value=pd.DataFrame())
+             patch("tradingsystem.services.indicator_service.series_service") as mock_chart:
+            mock_chart.get_series_dataframe = AsyncMock(return_value=pd.DataFrame())
 
             result = await indicator_service.calculate_indicator(
                 instrument="EUR_USD",
@@ -232,10 +232,10 @@ class TestCalculateIndicator:
     async def test_raises_when_calculation_fails(self, sample_ohlcv):
         """Should raise ValueError when calculation fails."""
         with patch("tradingsystem.services.indicator_service.ensure_initialized"), \
-             patch("tradingsystem.services.indicator_service.chart_service") as mock_chart, \
+             patch("tradingsystem.services.indicator_service.series_service") as mock_chart, \
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry, \
              patch("tradingsystem.services.indicator_service.calculate_pandas_ta_indicator") as mock_calc:
-            mock_chart.get_chart_dataframe = AsyncMock(return_value=sample_ohlcv)
+            mock_chart.get_series_dataframe = AsyncMock(return_value=sample_ohlcv)
             mock_registry.get.return_value = None
             mock_calc.return_value = None  # Calculation failed
 
@@ -256,10 +256,10 @@ class TestCalculateIndicator:
         }, index=sample_ohlcv.index)
 
         with patch("tradingsystem.services.indicator_service.ensure_initialized"), \
-             patch("tradingsystem.services.indicator_service.chart_service") as mock_chart, \
+             patch("tradingsystem.services.indicator_service.series_service") as mock_chart, \
              patch("tradingsystem.services.indicator_service.IndicatorRegistry") as mock_registry, \
              patch("tradingsystem.services.indicator_service.calculate_pandas_ta_indicator") as mock_calc:
-            mock_chart.get_chart_dataframe = AsyncMock(return_value=sample_ohlcv)
+            mock_chart.get_series_dataframe = AsyncMock(return_value=sample_ohlcv)
             mock_registry.get.return_value = None
             mock_calc.return_value = result_df
 

@@ -15,7 +15,7 @@ from tradingsystem.models.backtest import (
     BacktestResult,
     BacktestSummary,
 )
-from tradingsystem.services import chart_service
+from tradingsystem.services import series_service
 from tradingsystem.strategies.registry import StrategyRegistry
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def run_backtest(request: BacktestRequest) -> BacktestResult:
         f"Fetching candles for {request.instrument} from {request.start_date} to {request.end_date}"
     )
 
-    candles = await chart_service.get_chart_dataframe(
+    candles = await series_service.get_series_dataframe(
         instrument=request.instrument,
         period=request.period,
         start=request.start_date,

@@ -1,4 +1,4 @@
-"""Tests for chart service."""
+"""Tests for series service."""
 
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 
 from tradingsystem.core.rateservice import Candle
-from tradingsystem.models.chart import Chart, ChartCreate
-from tradingsystem.services import chart_service
+from tradingsystem.models.series import Series, SeriesCreate
+from tradingsystem.services import series_service
 
 
 # --- Fixtures ---
@@ -30,8 +30,8 @@ def mock_cursor():
 
 
 @pytest.fixture
-def sample_chart():
-    """Create sample chart data."""
+def sample_series():
+    """Create sample series data."""
     return {
         "id": uuid4(),
         "instrument": "EUR_USD",
@@ -67,95 +67,95 @@ def sample_candles():
     ]
 
 
-# --- create_chart Tests ---
+# --- create_series Tests ---
 
 
-class TestCreateChart:
-    """Tests for create_chart function."""
+class TestCreateSeries:
+    """Tests for create_series function."""
 
     @pytest.mark.asyncio
-    async def test_creates_chart(self, mock_cursor, sample_chart):
-        """Should create chart and return Chart object."""
-        mock_cursor.fetchone.return_value = sample_chart
+    async def test_creates_series(self, mock_cursor, sample_series):
+        """Should create series and return Series object."""
+        mock_cursor.fetchone.return_value = sample_series
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            chart_create = ChartCreate(instrument="EUR_USD", period="1h")
-            result = await chart_service.create_chart(chart_create)
+            series_create = SeriesCreate(instrument="EUR_USD", period="1h")
+            result = await series_service.create_series(series_create)
 
-            assert isinstance(result, Chart)
+            assert isinstance(result, Series)
             assert result.instrument == "EUR_USD"
             assert result.period == "1h"
 
     @pytest.mark.asyncio
-    async def test_commits_transaction(self, mock_cursor, sample_chart):
+    async def test_commits_transaction(self, mock_cursor, sample_series):
         """Should commit the transaction."""
-        mock_cursor.fetchone.return_value = sample_chart
+        mock_cursor.fetchone.return_value = sample_series
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            chart_create = ChartCreate(instrument="EUR_USD", period="1h")
-            await chart_service.create_chart(chart_create)
+            series_create = SeriesCreate(instrument="EUR_USD", period="1h")
+            await series_service.create_series(series_create)
 
             mock_cursor.connection.commit.assert_called_once()
 
 
-# --- get_chart Tests ---
+# --- get_series Tests ---
 
 
-class TestGetChart:
-    """Tests for get_chart function."""
+class TestGetSeries:
+    """Tests for get_series function."""
 
     @pytest.mark.asyncio
-    async def test_returns_chart_when_found(self, mock_cursor, sample_chart):
-        """Should return Chart when found."""
-        mock_cursor.fetchone.return_value = sample_chart
+    async def test_returns_series_when_found(self, mock_cursor, sample_series):
+        """Should return Series when found."""
+        mock_cursor.fetchone.return_value = sample_series
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.get_chart(sample_chart["id"])
+            result = await series_service.get_series(sample_series["id"])
 
-            assert isinstance(result, Chart)
-            assert result.id == sample_chart["id"]
+            assert isinstance(result, Series)
+            assert result.id == sample_series["id"]
 
     @pytest.mark.asyncio
     async def test_returns_none_when_not_found(self, mock_cursor):
         """Should return None when not found."""
         mock_cursor.fetchone.return_value = None
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.get_chart(uuid4())
+            result = await series_service.get_series(uuid4())
 
             assert result is None
 
 
-# --- get_chart_by_instrument_period Tests ---
+# --- get_series_by_instrument_period Tests ---
 
 
-class TestGetChartByInstrumentPeriod:
-    """Tests for get_chart_by_instrument_period function."""
+class TestGetSeriesByInstrumentPeriod:
+    """Tests for get_series_by_instrument_period function."""
 
     @pytest.mark.asyncio
-    async def test_returns_chart_when_found(self, mock_cursor, sample_chart):
-        """Should return Chart when found."""
-        mock_cursor.fetchone.return_value = sample_chart
+    async def test_returns_series_when_found(self, mock_cursor, sample_series):
+        """Should return Series when found."""
+        mock_cursor.fetchone.return_value = sample_series
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.get_chart_by_instrument_period("EUR_USD", "1h")
+            result = await series_service.get_series_by_instrument_period("EUR_USD", "1h")
 
-            assert isinstance(result, Chart)
+            assert isinstance(result, Series)
             assert result.instrument == "EUR_USD"
 
     @pytest.mark.asyncio
@@ -163,95 +163,95 @@ class TestGetChartByInstrumentPeriod:
         """Should return None when not found."""
         mock_cursor.fetchone.return_value = None
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.get_chart_by_instrument_period("EUR_USD", "1h")
+            result = await series_service.get_series_by_instrument_period("EUR_USD", "1h")
 
             assert result is None
 
 
-# --- list_charts Tests ---
+# --- list_series Tests ---
 
 
-class TestListCharts:
-    """Tests for list_charts function."""
+class TestListSeries:
+    """Tests for list_series function."""
 
     @pytest.mark.asyncio
-    async def test_returns_list_of_charts(self, mock_cursor, sample_chart):
-        """Should return list of Chart objects."""
-        mock_cursor.fetchall.return_value = [sample_chart]
+    async def test_returns_list_of_series(self, mock_cursor, sample_series):
+        """Should return list of Series objects."""
+        mock_cursor.fetchall.return_value = [sample_series]
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.list_charts()
+            result = await series_service.list_series()
 
             assert len(result) == 1
-            assert isinstance(result[0], Chart)
+            assert isinstance(result[0], Series)
 
     @pytest.mark.asyncio
     async def test_returns_empty_list_when_none(self, mock_cursor):
-        """Should return empty list when no charts."""
+        """Should return empty list when no series."""
         mock_cursor.fetchall.return_value = []
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.list_charts()
+            result = await series_service.list_series()
 
             assert result == []
 
 
-# --- delete_chart Tests ---
+# --- delete_series Tests ---
 
 
-class TestDeleteChart:
-    """Tests for delete_chart function."""
+class TestDeleteSeries:
+    """Tests for delete_series function."""
 
     @pytest.mark.asyncio
     async def test_returns_true_when_deleted(self, mock_cursor):
-        """Should return True when chart deleted."""
+        """Should return True when series deleted."""
         mock_cursor.rowcount = 1
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.delete_chart(uuid4())
+            result = await series_service.delete_series(uuid4())
 
             assert result is True
 
     @pytest.mark.asyncio
     async def test_returns_false_when_not_found(self, mock_cursor):
-        """Should return False when chart not found."""
+        """Should return False when series not found."""
         mock_cursor.rowcount = 0
 
-        with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
+        with patch("tradingsystem.services.series_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
             mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await chart_service.delete_chart(uuid4())
+            result = await series_service.delete_series(uuid4())
 
             assert result is False
 
 
-# --- get_chart_candles Tests ---
+# --- get_series_candles Tests ---
 
 
-class TestGetChartCandles:
-    """Tests for get_chart_candles function."""
+class TestGetSeriesCandles:
+    """Tests for get_series_candles function."""
 
     @pytest.mark.asyncio
     async def test_fetches_candles_from_rateservice(self, sample_candles):
         """Should fetch candles from RateService."""
-        with patch("tradingsystem.services.chart_service.rateservice_client") as mock_client:
+        with patch("tradingsystem.services.series_service.rateservice_client") as mock_client:
             mock_client.get_candles = AsyncMock(return_value=sample_candles)
 
-            result = await chart_service.get_chart_candles("EUR_USD", "1h")
+            result = await series_service.get_series_candles("EUR_USD", "1h")
 
             assert len(result) == 2
             mock_client.get_candles.assert_called_once()
@@ -262,10 +262,10 @@ class TestGetChartCandles:
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 31, tzinfo=timezone.utc)
 
-        with patch("tradingsystem.services.chart_service.rateservice_client") as mock_client:
+        with patch("tradingsystem.services.series_service.rateservice_client") as mock_client:
             mock_client.get_candles = AsyncMock(return_value=sample_candles)
 
-            await chart_service.get_chart_candles(
+            await series_service.get_series_candles(
                 instrument="EUR_USD",
                 period="1h",
                 start=start,
@@ -282,19 +282,19 @@ class TestGetChartCandles:
             )
 
 
-# --- get_chart_dataframe Tests ---
+# --- get_series_dataframe Tests ---
 
 
-class TestGetChartDataframe:
-    """Tests for get_chart_dataframe function."""
+class TestGetSeriesDataframe:
+    """Tests for get_series_dataframe function."""
 
     @pytest.mark.asyncio
     async def test_returns_dataframe(self, sample_candles):
         """Should return pandas DataFrame."""
-        with patch("tradingsystem.services.chart_service.get_chart_candles") as mock_get:
+        with patch("tradingsystem.services.series_service.get_series_candles") as mock_get:
             mock_get.return_value = sample_candles
 
-            result = await chart_service.get_chart_dataframe("EUR_USD", "1h")
+            result = await series_service.get_series_dataframe("EUR_USD", "1h")
 
             assert isinstance(result, pd.DataFrame)
             assert "open" in result.columns
@@ -306,30 +306,30 @@ class TestGetChartDataframe:
     @pytest.mark.asyncio
     async def test_converts_decimal_to_float(self, sample_candles):
         """Should convert Decimal values to float."""
-        with patch("tradingsystem.services.chart_service.get_chart_candles") as mock_get:
+        with patch("tradingsystem.services.series_service.get_series_candles") as mock_get:
             mock_get.return_value = sample_candles
 
-            result = await chart_service.get_chart_dataframe("EUR_USD", "1h")
+            result = await series_service.get_series_dataframe("EUR_USD", "1h")
 
             assert result["close"].dtype in [float, "float64"]
 
     @pytest.mark.asyncio
     async def test_sets_time_as_index(self, sample_candles):
         """Should set time as DataFrame index."""
-        with patch("tradingsystem.services.chart_service.get_chart_candles") as mock_get:
+        with patch("tradingsystem.services.series_service.get_series_candles") as mock_get:
             mock_get.return_value = sample_candles
 
-            result = await chart_service.get_chart_dataframe("EUR_USD", "1h")
+            result = await series_service.get_series_dataframe("EUR_USD", "1h")
 
             assert result.index.name == "time" or "time" not in result.columns
 
     @pytest.mark.asyncio
     async def test_returns_empty_dataframe_when_no_candles(self):
         """Should return empty DataFrame when no candles."""
-        with patch("tradingsystem.services.chart_service.get_chart_candles") as mock_get:
+        with patch("tradingsystem.services.series_service.get_series_candles") as mock_get:
             mock_get.return_value = []
 
-            result = await chart_service.get_chart_dataframe("EUR_USD", "1h")
+            result = await series_service.get_series_dataframe("EUR_USD", "1h")
 
             assert isinstance(result, pd.DataFrame)
             assert len(result) == 0
@@ -341,10 +341,10 @@ class TestGetChartDataframe:
         # Reverse the candles to test sorting
         reversed_candles = list(reversed(sample_candles))
 
-        with patch("tradingsystem.services.chart_service.get_chart_candles") as mock_get:
+        with patch("tradingsystem.services.series_service.get_series_candles") as mock_get:
             mock_get.return_value = reversed_candles
 
-            result = await chart_service.get_chart_dataframe("EUR_USD", "1h")
+            result = await series_service.get_series_dataframe("EUR_USD", "1h")
 
             # Index should be sorted ascending
             assert result.index.is_monotonic_increasing

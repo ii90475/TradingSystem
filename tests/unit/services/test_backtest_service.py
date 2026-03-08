@@ -29,9 +29,9 @@ def mock_strategy_registry():
 
 
 @pytest.fixture
-def mock_chart_service():
-    """Mock the chart_service."""
-    with patch("tradingsystem.services.backtest_service.chart_service") as mock:
+def mock_series_service():
+    """Mock the series_service."""
+    with patch("tradingsystem.services.backtest_service.series_service") as mock:
         yield mock
 
 
@@ -123,7 +123,7 @@ class TestRunBacktest:
 
     @pytest.mark.asyncio
     async def test_run_backtest_success(
-        self, mock_strategy_registry, mock_chart_service, backtest_request, sample_dataframe
+        self, mock_strategy_registry, mock_series_service, backtest_request, sample_dataframe
     ):
         """run_backtest should execute backtest and return results."""
         from tradingsystem.strategies.base import BaseStrategy, StrategyContext
@@ -139,7 +139,7 @@ class TestRunBacktest:
         mock_instance = MockStrategy()
         mock_strategy_registry.get_instance.return_value = mock_instance
 
-        mock_chart_service.get_chart_dataframe = AsyncMock(return_value=sample_dataframe)
+        mock_series_service.get_series_dataframe = AsyncMock(return_value=sample_dataframe)
 
         with patch("tradingsystem.services.backtest_service.BacktestEngine") as mock_engine, \
              patch("tradingsystem.services.backtest_service.save_backtest_result") as mock_save:
@@ -155,7 +155,7 @@ class TestRunBacktest:
             result = await backtest_service.run_backtest(backtest_request)
 
             mock_strategy_registry.get_instance.assert_called_once()
-            mock_chart_service.get_chart_dataframe.assert_called_once()
+            mock_series_service.get_series_dataframe.assert_called_once()
             mock_engine.return_value.run.assert_called_once()
 
     @pytest.mark.asyncio
@@ -190,7 +190,7 @@ class TestRunBacktest:
 
     @pytest.mark.asyncio
     async def test_run_backtest_no_data(
-        self, mock_strategy_registry, mock_chart_service, backtest_request
+        self, mock_strategy_registry, mock_series_service, backtest_request
     ):
         """run_backtest should raise when no candle data available."""
         from tradingsystem.strategies.base import BaseStrategy
@@ -204,7 +204,7 @@ class TestRunBacktest:
                 return []
 
         mock_strategy_registry.get_instance.return_value = MockStrategy()
-        mock_chart_service.get_chart_dataframe = AsyncMock(return_value=pd.DataFrame())
+        mock_series_service.get_series_dataframe = AsyncMock(return_value=pd.DataFrame())
 
         with pytest.raises(ValueError, match="No candle data available"):
             await backtest_service.run_backtest(backtest_request)

@@ -65,9 +65,9 @@ def mock_strategy_registry():
 
 
 @pytest.fixture
-def mock_chart_service():
-    """Mock the chart_service."""
-    with patch("tradingsystem.services.strategy_service.chart_service") as mock:
+def mock_series_service():
+    """Mock the series_service."""
+    with patch("tradingsystem.services.strategy_service.series_service") as mock:
         yield mock
 
 
@@ -292,13 +292,13 @@ class TestRunStrategyOnce:
 
     @pytest.mark.asyncio
     async def test_run_strategy_once_success(
-        self, mock_strategy_registry, mock_chart_service, mock_signal_service, sample_dataframe
+        self, mock_strategy_registry, mock_series_service, mock_signal_service, sample_dataframe
     ):
         """run_strategy_once should execute strategy and return signals."""
         mock_instance = MockStrategy()
         mock_strategy_registry.get_instance.return_value = mock_instance
 
-        mock_chart_service.get_chart_dataframe = AsyncMock(return_value=sample_dataframe)
+        mock_series_service.get_series_dataframe = AsyncMock(return_value=sample_dataframe)
         mock_signal_service.save_signals = AsyncMock()
 
         with patch("tradingsystem.services.strategy_service._calculate_strategy_indicators") as mock_calc:
@@ -327,13 +327,13 @@ class TestRunStrategyOnce:
 
     @pytest.mark.asyncio
     async def test_run_strategy_once_no_data(
-        self, mock_strategy_registry, mock_chart_service
+        self, mock_strategy_registry, mock_series_service
     ):
         """run_strategy_once should return empty list when no candle data."""
         mock_instance = MockStrategy()
         mock_strategy_registry.get_instance.return_value = mock_instance
 
-        mock_chart_service.get_chart_dataframe = AsyncMock(return_value=pd.DataFrame())
+        mock_series_service.get_series_dataframe = AsyncMock(return_value=pd.DataFrame())
 
         signals = await strategy_service.run_strategy_once(
             strategy_id="mock_strategy",
@@ -348,7 +348,7 @@ class TestExecuteRunningStrategies:
 
     @pytest.mark.asyncio
     async def test_execute_running_strategies_success(
-        self, mock_chart_service, mock_signal_service, sample_dataframe
+        self, mock_series_service, mock_signal_service, sample_dataframe
     ):
         """execute_running_strategies should run all registered strategies."""
         mock_instance = MockStrategy()
@@ -363,7 +363,7 @@ class TestExecuteRunningStrategies:
             "signals_generated": 0,
         }
 
-        mock_chart_service.get_chart_dataframe = AsyncMock(return_value=sample_dataframe)
+        mock_series_service.get_series_dataframe = AsyncMock(return_value=sample_dataframe)
         mock_signal_service.save_signals = AsyncMock()
 
         with patch("tradingsystem.services.strategy_service._calculate_strategy_indicators") as mock_calc:
@@ -388,7 +388,7 @@ class TestExecuteRunningStrategies:
 
     @pytest.mark.asyncio
     async def test_execute_running_strategies_error_isolation(
-        self, mock_chart_service, mock_signal_service
+        self, mock_series_service, mock_signal_service
     ):
         """execute_running_strategies should continue on individual errors."""
         mock_instance = MockStrategy()
@@ -404,7 +404,7 @@ class TestExecuteRunningStrategies:
         }
 
         # Make chart service raise an error
-        mock_chart_service.get_chart_dataframe = AsyncMock(
+        mock_series_service.get_series_dataframe = AsyncMock(
             side_effect=Exception("Chart error")
         )
 

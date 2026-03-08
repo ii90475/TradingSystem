@@ -8,7 +8,7 @@ import pandas as pd
 
 from tradingsystem.indicators import IndicatorRegistry, calculate_pandas_ta_indicator, ensure_initialized
 from tradingsystem.models.signal import Signal
-from tradingsystem.services import chart_service, signal_service
+from tradingsystem.services import series_service, signal_service
 from tradingsystem.strategies.base import BaseStrategy, StrategyContext
 from tradingsystem.strategies.registry import StrategyRegistry, discover_builtin_strategies
 
@@ -210,7 +210,7 @@ async def run_strategy_once(
         raise ValueError(f"Strategy not found: {strategy_id}")
 
     # Fetch candle data
-    df = await chart_service.get_chart_dataframe(
+    df = await series_service.get_series_dataframe(
         instrument=instrument,
         period=period,
         limit=limit,
@@ -296,7 +296,7 @@ async def _execute_strategy_for_pair(
 ) -> list[Signal]:
     """Execute a strategy for a specific instrument/period pair."""
     # Fetch candle data
-    df = await chart_service.get_chart_dataframe(
+    df = await series_service.get_series_dataframe(
         instrument=instrument,
         period=period,
         limit=limit,

@@ -1,4 +1,4 @@
-"""Chart service for managing charts and fetching candle data."""
+"""Series service for managing series and fetching candle data."""
 
 import logging
 from datetime import datetime
@@ -8,106 +8,106 @@ import pandas as pd
 
 from tradingsystem.core.database import get_cursor
 from tradingsystem.core.rateservice import Candle, rateservice_client
-from tradingsystem.models.chart import Chart, ChartCreate
+from tradingsystem.models.series import Series, SeriesCreate
 
 logger = logging.getLogger(__name__)
 
 
-async def create_chart(chart: ChartCreate) -> Chart:
+async def create_series(series: SeriesCreate) -> Series:
     """
-    Create a new chart configuration.
+    Create a new series configuration.
 
     Args:
-        chart: Chart creation request with instrument and period
+        series: Series creation request with instrument and period
 
     Returns:
-        Created Chart object
+        Created Series object
     """
     async with get_cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO charts (instrument, period)
+            INSERT INTO series (instrument, period)
             VALUES (%s, %s)
             ON CONFLICT (instrument, period) DO UPDATE SET instrument = EXCLUDED.instrument
             RETURNING id, instrument, period, created_at
             """,
-            (chart.instrument, chart.period),
+            (series.instrument, series.period),
         )
         row = await cur.fetchone()
         await cur.connection.commit()
 
         logger.info(
-            "chart_created",
+            "series_created",
             extra={
-                "event": "chart",
+                "event": "series",
                 "action": "create",
-                "instrument": chart.instrument,
-                "period": chart.period,
+                "instrument": series.instrument,
+                "period": series.period,
                 "id": str(row["id"]),
             },
         )
 
-        return Chart(**row)
+        return Series(**row)
 
 
-async def get_chart(chart_id: UUID) -> Chart | None:
-    """Get a chart by ID."""
+async def get_series(series_id: UUID) -> Series | None:
+    """Get a series by ID."""
     async with get_cursor() as cur:
         await cur.execute(
             """
             SELECT id, instrument, period, created_at
-            FROM charts
+            FROM series
             WHERE id = %s
             """,
-            (chart_id,),
+            (series_id,),
         )
         row = await cur.fetchone()
-        return Chart(**row) if row else None
+        return Series(**row) if row else None
 
 
-async def get_chart_by_instrument_period(instrument: str, period: str) -> Chart | None:
-    """Get a chart by instrument and period."""
+async def get_series_by_instrument_period(instrument: str, period: str) -> Series | None:
+    """Get a series by instrument and period."""
     async with get_cursor() as cur:
         await cur.execute(
             """
             SELECT id, instrument, period, created_at
-            FROM charts
+            FROM series
             WHERE instrument = %s AND period = %s
             """,
             (instrument, period),
         )
         row = await cur.fetchone()
-        return Chart(**row) if row else None
+        return Series(**row) if row else None
 
 
-async def list_charts() -> list[Chart]:
-    """List all configured charts."""
+async def list_series() -> list[Series]:
+    """List all configured series."""
     async with get_cursor() as cur:
         await cur.execute(
             """
             SELECT id, instrument, period, created_at
-            FROM charts
+            FROM series
             ORDER BY instrument, period
             """
         )
         rows = await cur.fetchall()
-        return [Chart(**row) for row in rows]
+        return [Series(**row) for row in rows]
 
 
-async def delete_chart(chart_id: UUID) -> bool:
-    """Delete a chart by ID."""
+async def delete_series(series_id: UUID) -> bool:
+    """Delete a series by ID."""
     async with get_cursor() as cur:
         await cur.execute(
             """
-            DELETE FROM charts WHERE id = %s
+            DELETE FROM series WHERE id = %s
             """,
-            (chart_id,),
+            (series_id,),
         )
         await cur.connection.commit()
         return cur.rowcount > 0
 
 
-async def get_chart_candles(
+async def get_series_candles(
     instrument: str,
     period: str = "M1",
     start: datetime | None = None,
@@ -115,7 +115,7 @@ async def get_chart_candles(
     limit: int = 100,
 ) -> list[Candle]:
     """
-    Fetch candles for a chart from RateService.
+    Fetch candles for a series from RateService.
 
     Args:
         instrument: Currency pair (e.g., "EUR_USD")
@@ -136,7 +136,7 @@ async def get_chart_candles(
     )
 
 
-async def get_chart_dataframe(
+async def get_series_dataframe(
     instrument: str,
     period: str = "M1",
     start: datetime | None = None,
@@ -156,7 +156,7 @@ async def get_chart_dataframe(
     Returns:
         DataFrame with columns: time, open, high, low, close, volume
     """
-    candles = await get_chart_candles(
+    candles = await get_series_candles(
         instrument=instrument,
         period=period,
         start=start,

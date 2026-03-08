@@ -1,6 +1,6 @@
 """Services module for TradingSystem business logic."""
 
-from tradingsystem.services import chart_service
+from tradingsystem.services import series_service
 from tradingsystem.services import indicator_service
 from tradingsystem.services import signal_service
 from tradingsystem.services import strategy_service
@@ -19,7 +19,7 @@ from tradingsystem.services.monitoring_service import monitoring_service
 from tradingsystem.services.twilio_handler import twilio_handler
 
 __all__ = [
-    "chart_service",
+    "series_service",
     "indicator_service",
     "signal_service",
     "strategy_service",

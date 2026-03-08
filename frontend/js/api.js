@@ -103,25 +103,25 @@ class TradingAPI {
         return `${protocol}//${window.location.host}/api/rates/ws`;
     }
 
-    // ==================== Charts ====================
+    // ==================== Series ====================
 
-    async getCharts() {
-        return this.request('/charts');
+    async getSeries() {
+        return this.request('/series');
     }
 
-    async getChart(chartId) {
-        return this.request(`/charts/${chartId}`);
+    async getSeriesById(seriesId) {
+        return this.request(`/series/${seriesId}`);
     }
 
-    async getChartCandles(chartId, start = null, end = null, limit = 100) {
+    async getSeriesCandles(seriesId, start = null, end = null, limit = 100) {
         const params = new URLSearchParams({ limit: limit.toString() });
         if (start) params.append('start', start);
         if (end) params.append('end', end);
-        return this.request(`/charts/${chartId}/candles?${params}`);
+        return this.request(`/series/${seriesId}/candles?${params}`);
     }
 
-    async getChartByInstrument(instrument, period) {
-        return this.request(`/charts/by-instrument/${instrument}?period=${period}`);
+    async getSeriesByInstrument(instrument, period) {
+        return this.request(`/series/by-instrument/${instrument}?period=${period}`);
     }
 
     // ==================== Signals ====================

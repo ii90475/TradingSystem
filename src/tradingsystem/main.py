@@ -26,7 +26,7 @@ from tradingsystem.services.log_monitor import setup_log_monitoring
 from tradingsystem.services.monitoring_service import monitoring_service
 from tradingsystem.services.twilio_handler import twilio_handler
 from tradingsystem.api import (
-    charts_router,
+    series_router,
     indicators_router,
     strategies_router,
     strategy_instances_router,
@@ -135,7 +135,7 @@ app.add_middleware(
 )
 
 # Register API routers (original paths for backward compatibility)
-app.include_router(charts_router)
+app.include_router(series_router)
 app.include_router(indicators_router)
 app.include_router(strategies_router)
 app.include_router(strategy_instances_router)
@@ -149,7 +149,7 @@ app.include_router(rates_router)
 app.include_router(session_router)
 
 # Also register with /api prefix for frontend
-app.include_router(charts_router, prefix="/api")
+app.include_router(series_router, prefix="/api")
 app.include_router(indicators_router, prefix="/api")
 app.include_router(strategies_router, prefix="/api")
 app.include_router(strategy_instances_router, prefix="/api")
@@ -241,7 +241,7 @@ async def root() -> dict:
             "ui": "/ui",
             "api": {
                 "dashboard": "/api/dashboard",
-                "charts": "/api/charts",
+                "series": "/api/series",
                 "rates": "/api/rates",
                 "indicators": "/api/indicators",
                 "strategies": "/api/strategies",
