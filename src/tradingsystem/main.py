@@ -18,6 +18,7 @@ from tradingsystem.core.database import (
     init_pool,
     init_schema,
 )
+from tradingsystem.core.oanda_trading import oanda_trading_client
 from tradingsystem.core.rateservice import rateservice_client
 from tradingsystem.core.websocket_manager import rate_manager
 from tradingsystem.services.health import health_state
@@ -116,7 +117,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.51.0",
+    version="0.52.0",
     lifespan=lifespan,
 )
 
@@ -241,7 +242,7 @@ async def root() -> dict:
         "name": settings.app_name,
         "version": "0.41.0",
         "description": "Automated trading system",
-        "mode": "LIVE" if settings.live_trading_enabled else "PAPER",
+        "mode": oanda_trading_client.trading_mode,
         "ui": "/ui",
         "endpoints": {
             "health": "/health",

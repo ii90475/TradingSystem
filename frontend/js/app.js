@@ -27,6 +27,8 @@ class TradingApp {
         this.chartStrategies = [];
         this.availableStrategies = [];
         this.editingStrategyId = null;
+        // Trading mode state
+        this.tradingMode = 'PAPER';
         // Chart management state
         this.charts = [];
         this.activeChartId = null;
@@ -152,6 +154,12 @@ class TradingApp {
             orderForm.addEventListener('submit', (e) => this.handleOrderSubmit(e));
         }
 
+        // Trading mode toggle
+        const modeToggle = document.getElementById('trading-mode-toggle');
+        if (modeToggle) {
+            modeToggle.addEventListener('click', () => this.toggleTradingMode());
+        }
+
         // Sidebar toggle
         const sidebarToggle = document.getElementById('sidebar-toggle');
         if (sidebarToggle) {
@@ -221,6 +229,9 @@ class TradingApp {
         try {
             await api.getHealth();
             this.updateConnectionStatus(true);
+
+            // Load trading mode
+            await this.loadTradingMode();
 
             // Restore session from API
             await this.restoreSessionFromAPI();
@@ -1555,6 +1566,61 @@ class TradingApp {
         if (connectionStatus) {
             connectionStatus.className = `connection-status ${connected ? 'connected' : ''}`;
             connectionStatus.title = connected ? 'Connected' : 'Disconnected';
+        }
+    }
+
+    // ==================== Trading Mode ====================
+
+    async loadTradingMode() {
+        try {
+            const result = await api.getTradingMode();
+            this.tradingMode = result.mode;
+            this.updateTradingModeDisplay();
+        } catch (e) {
+            console.warn('Failed to load trading mode:', e);
+        }
+    }
+
+    updateTradingModeDisplay() {
+        const toggle = document.getElementById('trading-mode-toggle');
+        const label = document.getElementById('mode-label');
+        if (toggle) {
+            toggle.className = `trading-mode-toggle ${this.tradingMode.toLowerCase()}`;
+            toggle.title = `${this.tradingMode} mode — click to switch`;
+        }
+        if (label) {
+            label.textContent = this.tradingMode;
+        }
+    }
+
+    async toggleTradingMode() {
+        if (this.tradingMode === 'PAPER') {
+            const confirmed = confirm(
+                'WARNING: You are about to switch to LIVE trading mode.\n\n' +
+                'All orders will execute with REAL money on your OANDA production account.\n\n' +
+                'Are you sure you want to switch to LIVE mode?'
+            );
+            if (!confirmed) return;
+
+            try {
+                const result = await api.setTradingMode('LIVE', true);
+                this.tradingMode = result.mode;
+                this.updateTradingModeDisplay();
+                this.showToast('Switched to LIVE trading mode', 'warning');
+                await this.loadAccountData();
+            } catch (e) {
+                this.showToast(e.message || 'Failed to switch to LIVE mode', 'error');
+            }
+        } else {
+            try {
+                const result = await api.setTradingMode('PAPER');
+                this.tradingMode = result.mode;
+                this.updateTradingModeDisplay();
+                this.showToast('Switched to PAPER trading mode', 'success');
+                await this.loadAccountData();
+            } catch (e) {
+                this.showToast(e.message || 'Failed to switch to PAPER mode', 'error');
+            }
         }
     }
 

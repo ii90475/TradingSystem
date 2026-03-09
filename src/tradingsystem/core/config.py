@@ -22,7 +22,12 @@ class Settings(BaseSettings):
     # RateService integration
     rateservice_url: str = "http://localhost:8000"
 
-    # Oanda API (for live trading)
+    # Oanda API — Paper (practice environment)
+    oanda_paper_api_key: str = ""
+    oanda_paper_account_id: str = ""
+    oanda_paper_api_url: str = "https://api-fxpractice.oanda.com"
+
+    # Oanda API — Live (production environment)
     oanda_api_key: str = ""
     oanda_account_id: str = ""
     oanda_api_url: str = "https://api-fxtrade.oanda.com"

@@ -103,6 +103,85 @@ def mock_oanda_trade():
     )
 
 
+class TestTradingMode:
+    """Tests for GET/POST /live/mode."""
+
+    def test_get_trading_mode(self, client):
+        """Should return current trading mode."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
+             patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_client.trading_mode = "PAPER"
+            mock_settings.live_trading_enabled = False
+
+            response = client.get("/live/mode")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["mode"] == "PAPER"
+
+    def test_set_mode_to_paper(self, client):
+        """Should switch to PAPER mode."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client:
+            mock_client.trading_mode = "PAPER"
+
+            response = client.post(
+                "/live/mode",
+                json={"mode": "PAPER"},
+            )
+
+            assert response.status_code == 200
+            mock_client.set_trading_mode.assert_called_once_with("PAPER")
+
+    def test_set_mode_to_live_requires_confirm(self, client):
+        """Should reject LIVE mode without confirm_live."""
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_settings.live_trading_enabled = True
+
+            response = client.post(
+                "/live/mode",
+                json={"mode": "LIVE", "confirm_live": False},
+            )
+
+            assert response.status_code == 400
+            assert "confirm_live" in response.json()["detail"]
+
+    def test_set_mode_to_live_requires_enabled(self, client):
+        """Should reject LIVE mode when live trading disabled."""
+        with patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_settings.live_trading_enabled = False
+
+            response = client.post(
+                "/live/mode",
+                json={"mode": "LIVE", "confirm_live": True},
+            )
+
+            assert response.status_code == 403
+
+    def test_set_mode_to_live_success(self, client):
+        """Should switch to LIVE mode with confirmation and enabled."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
+             patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "LIVE"
+
+            response = client.post(
+                "/live/mode",
+                json={"mode": "LIVE", "confirm_live": True},
+            )
+
+            assert response.status_code == 200
+            mock_client.set_trading_mode.assert_called_once_with("LIVE")
+
+    def test_set_mode_invalid(self, client):
+        """Should reject invalid mode."""
+        response = client.post(
+            "/live/mode",
+            json={"mode": "INVALID"},
+        )
+
+        assert response.status_code == 400
+
+
 class TestGetLiveStatus:
     """Tests for GET /live/status."""
 
@@ -194,8 +273,10 @@ class TestExecuteLiveTrade:
     """Tests for POST /live/trade."""
 
     def test_execute_trade_disabled(self, client):
-        """Should return 403 when live trading disabled."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings:
+        """Should return 403 when in LIVE mode with live trading disabled."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
+             patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_client.trading_mode = "LIVE"
             mock_settings.live_trading_enabled = False
 
             response = client.post(
@@ -213,10 +294,10 @@ class TestExecuteLiveTrade:
     def test_execute_trade_success(
         self, client, sample_order, sample_position, mock_oanda_response
     ):
-        """Should execute live trade when enabled."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        """Should execute trade when in PAPER mode."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.execute_live_trade = AsyncMock(
                 return_value=(sample_order, sample_position, mock_oanda_response)
             )
@@ -240,9 +321,9 @@ class TestExecuteLiveTrade:
         self, client, sample_order, sample_position, mock_oanda_response
     ):
         """Should pass stop loss and take profit to service."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.execute_live_trade = AsyncMock(
                 return_value=(sample_order, sample_position, mock_oanda_response)
             )
@@ -268,9 +349,9 @@ class TestExecuteLiveTrade:
         """Should return 400 on risk violation."""
         from tradingsystem.services.live_trading_service import LiveTradingError
 
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.execute_live_trade = AsyncMock(
                 side_effect=LiveTradingError("Risk check failed: daily loss limit exceeded")
             )
@@ -289,9 +370,9 @@ class TestExecuteLiveTrade:
 
     def test_execute_trade_general_exception(self, client):
         """Should return 500 on unexpected error."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.execute_live_trade = AsyncMock(
                 side_effect=Exception("Unexpected database error")
             )
@@ -313,8 +394,10 @@ class TestCloseLiveTrade:
     """Tests for POST /live/trade/{position_id}/close."""
 
     def test_close_trade_disabled(self, client):
-        """Should return 403 when live trading disabled."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings:
+        """Should return 403 when in LIVE mode with live trading disabled."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
+             patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_client.trading_mode = "LIVE"
             mock_settings.live_trading_enabled = False
 
             response = client.post(f"/live/trade/{uuid4()}/close")
@@ -324,13 +407,13 @@ class TestCloseLiveTrade:
     def test_close_trade_success(
         self, client, sample_order, sample_position, mock_oanda_response
     ):
-        """Should close live trade."""
+        """Should close trade."""
         sample_position.status = PositionStatus.CLOSED
         sample_position.pnl = Decimal("50.00")
 
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.close_live_trade = AsyncMock(
                 return_value=(sample_order, sample_position, mock_oanda_response)
             )
@@ -345,9 +428,9 @@ class TestCloseLiveTrade:
         """Should return 400 on LiveTradingError."""
         from tradingsystem.services.live_trading_service import LiveTradingError
 
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.close_live_trade = AsyncMock(
                 side_effect=LiveTradingError("Position not found in OANDA")
             )
@@ -359,9 +442,9 @@ class TestCloseLiveTrade:
 
     def test_close_trade_general_exception(self, client):
         """Should return 500 on unexpected error."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.close_live_trade = AsyncMock(
                 side_effect=Exception("Network timeout")
             )
@@ -376,8 +459,10 @@ class TestEmergencyCloseAll:
     """Tests for POST /live/emergency-close."""
 
     def test_emergency_close_disabled(self, client):
-        """Should return 403 when live trading disabled."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings:
+        """Should return 403 when in LIVE mode with live trading disabled."""
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
+             patch("tradingsystem.api.live_trading.settings") as mock_settings:
+            mock_client.trading_mode = "LIVE"
             mock_settings.live_trading_enabled = False
 
             response = client.post("/live/emergency-close")
@@ -386,9 +471,9 @@ class TestEmergencyCloseAll:
 
     def test_emergency_close_success(self, client):
         """Should close all trades."""
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.emergency_close_all = AsyncMock(
                 return_value=[{"trade_id": "123", "pnl": "50.00"}]
             )
@@ -403,9 +488,9 @@ class TestEmergencyCloseAll:
         """Should return 400 on LiveTradingError."""
         from tradingsystem.services.live_trading_service import LiveTradingError
 
-        with patch("tradingsystem.api.live_trading.settings") as mock_settings, \
+        with patch("tradingsystem.api.live_trading.oanda_trading_client") as mock_client, \
              patch("tradingsystem.api.live_trading.live_trading_service") as mock_service:
-            mock_settings.live_trading_enabled = True
+            mock_client.trading_mode = "PAPER"
             mock_service.emergency_close_all = AsyncMock(
                 side_effect=LiveTradingError("Failed to close all positions")
             )

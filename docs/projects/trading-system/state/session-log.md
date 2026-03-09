@@ -247,3 +247,29 @@
 **Decisions made:** None new
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-09 (afternoon)
+
+**Accomplished:**
+- Completed Issue #11: Plain English strategy creation UI (v0.51.0)
+  - Strategy generator modal with two-step workflow:
+    Step 1: Plain English description textarea + Generate button (calls POST /strategies/generate)
+    Step 2: Code preview panel with validation badge (Valid/Issues), validation error details
+  - Iterate button: sends original description + current code + refinement instructions back to generate endpoint for incremental refinement
+  - Test section: select instrument + period, runs strategy on historical data via POST /strategies/test, displays signal stats (buy/sell counts, candles analyzed, date range)
+  - Save button: persists strategy to disk and registers in StrategyRegistry via POST /strategies/save
+  - "+ Create New..." option added to strategy picker dropdown in chart strategy modal — opens generator modal
+  - API client methods: generateStrategy(), saveStrategy(), testStrategy()
+  - CSS: wider modal variant, monospace code preview, validation badges, test results grid
+  - Cache-bust version bumped to 0.51.0
+- All 1044 tests passing, Docker rebuilt and verified healthy
+
+**Remaining:**
+- Issue #12: Paper/Live trading toggle
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:** None new
+
+**Blockers:** None

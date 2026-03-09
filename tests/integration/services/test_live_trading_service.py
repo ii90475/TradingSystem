@@ -80,6 +80,9 @@ class TestExecuteLiveTrade:
              patch("tradingsystem.services.live_trading_service.oanda_trading_client") as mock_oanda, \
              patch("tradingsystem.services.live_trading_service.get_cursor") as mock_cursor_ctx:
 
+            # Set trading mode
+            mock_oanda.trading_mode = "PAPER"
+
             # Risk check passes
             mock_risk.check_trade = AsyncMock(return_value=RiskCheckResult(approved=True))
 
@@ -162,6 +165,7 @@ class TestExecuteLiveTrade:
              patch("tradingsystem.services.live_trading_service.oanda_trading_client") as mock_oanda, \
              patch("tradingsystem.services.live_trading_service.get_cursor") as mock_cursor_ctx:
 
+            mock_oanda.trading_mode = "PAPER"
             mock_risk.check_trade = AsyncMock(return_value=RiskCheckResult(approved=True))
 
             mock_order = MagicMock()
@@ -205,6 +209,7 @@ class TestExecuteLiveTrade:
              patch("tradingsystem.services.live_trading_service.oanda_trading_client") as mock_oanda, \
              patch("tradingsystem.services.live_trading_service.get_cursor") as mock_cursor_ctx:
 
+            mock_oanda.trading_mode = "PAPER"
             mock_risk.check_trade = AsyncMock(return_value=RiskCheckResult(approved=True))
 
             mock_order = MagicMock()
@@ -264,6 +269,7 @@ class TestCloseLiveTrade:
              patch("tradingsystem.services.live_trading_service.risk_manager") as mock_risk, \
              patch("tradingsystem.services.live_trading_service.get_cursor") as mock_cursor_ctx:
 
+            mock_oanda.trading_mode = "PAPER"
             mock_positions.get_position = AsyncMock(return_value=open_position)
 
             mock_order = MagicMock()
@@ -353,6 +359,7 @@ class TestCloseLiveTrade:
              patch("tradingsystem.services.live_trading_service.risk_manager") as mock_risk, \
              patch("tradingsystem.services.live_trading_service.get_cursor") as mock_cursor_ctx:
 
+            mock_oanda.trading_mode = "PAPER"
             mock_positions.get_position = AsyncMock(return_value=open_position)
 
             mock_order = MagicMock()
@@ -446,6 +453,7 @@ class TestGetLiveAccountStatus:
              patch("tradingsystem.services.live_trading_service.risk_manager") as mock_risk:
 
             mock_settings.live_trading_enabled = True
+            mock_oanda.trading_mode = "LIVE"
             mock_oanda.check_connectivity = AsyncMock(return_value={"connected": True})
             mock_oanda.get_account_summary = AsyncMock(return_value=account)
             mock_risk.get_risk_status = MagicMock(return_value={
@@ -468,6 +476,7 @@ class TestGetLiveAccountStatus:
              patch("tradingsystem.services.live_trading_service.risk_manager") as mock_risk:
 
             mock_settings.live_trading_enabled = False
+            mock_oanda.trading_mode = "PAPER"
             mock_oanda.check_connectivity = AsyncMock(return_value={
                 "connected": False,
                 "error": "Connection timeout",

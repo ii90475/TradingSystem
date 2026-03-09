@@ -69,16 +69,50 @@ class OandaOrderResponse(BaseModel):
 
 
 class OandaTradingClient:
-    """Client for Oanda Trading API (v20)."""
+    """Client for Oanda Trading API (v20).
+
+    Supports Paper (practice) and Live (production) modes.
+    Credentials switch based on current trading mode.
+    """
 
     def __init__(self) -> None:
-        self.base_url = settings.oanda_api_url
-        self.account_id = settings.oanda_account_id
-        self.headers = {
-            "Authorization": f"Bearer {settings.oanda_api_key}",
+        self._trading_mode: str = "PAPER"
+        self._client: httpx.AsyncClient | None = None
+
+    @property
+    def trading_mode(self) -> str:
+        return self._trading_mode
+
+    def set_trading_mode(self, mode: str) -> None:
+        """Switch trading mode. Closes existing HTTP client to reset connections."""
+        if mode not in ("PAPER", "LIVE"):
+            raise ValueError(f"Invalid trading mode: {mode}")
+        if mode == "LIVE" and not settings.live_trading_enabled:
+            raise RuntimeError(
+                "Live trading is disabled. Set LIVE_TRADING_ENABLED=true to enable."
+            )
+        self._trading_mode = mode
+        logger.info(f"Trading mode set to {mode}")
+
+    @property
+    def base_url(self) -> str:
+        if self._trading_mode == "LIVE":
+            return settings.oanda_api_url
+        return settings.oanda_paper_api_url
+
+    @property
+    def account_id(self) -> str:
+        if self._trading_mode == "LIVE":
+            return settings.oanda_account_id
+        return settings.oanda_paper_account_id
+
+    @property
+    def headers(self) -> dict[str, str]:
+        api_key = settings.oanda_api_key if self._trading_mode == "LIVE" else settings.oanda_paper_api_key
+        return {
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
@@ -94,7 +128,7 @@ class OandaTradingClient:
 
     def _check_live_trading_enabled(self) -> None:
         """Raise error if live trading is not enabled."""
-        if not settings.live_trading_enabled:
+        if self._trading_mode == "LIVE" and not settings.live_trading_enabled:
             raise RuntimeError(
                 "Live trading is disabled. Set LIVE_TRADING_ENABLED=true to enable."
             )
@@ -469,12 +503,14 @@ class OandaTradingClient:
                 "connected": True,
                 "account_id": account.id,
                 "balance": str(account.balance),
+                "trading_mode": self._trading_mode,
                 "live_trading_enabled": settings.live_trading_enabled,
             }
         except Exception as e:
             return {
                 "connected": False,
                 "error": str(e),
+                "trading_mode": self._trading_mode,
                 "live_trading_enabled": settings.live_trading_enabled,
             }
 

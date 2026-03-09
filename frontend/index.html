@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=0.51.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.52.0">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -28,6 +28,9 @@
                 <span class="account-label">Margin Used</span>
                 <span id="margin-used" class="account-value loading">--</span>
             </div>
+        </div>
+        <div class="trading-mode-toggle" id="trading-mode-toggle" title="Click to switch trading mode">
+            <span class="mode-label" id="mode-label">PAPER</span>
         </div>
         <div class="connection-status" id="connection-status" title="Connecting...">
             <span class="plug-icon">⏻</span>
@@ -357,8 +360,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.51.0"></script>
-    <script src="/static/js/chart.js?v=0.51.0"></script>
-    <script src="/static/js/app.js?v=0.51.0"></script>
+    <script src="/static/js/api.js?v=0.52.0"></script>
+    <script src="/static/js/chart.js?v=0.52.0"></script>
+    <script src="/static/js/app.js?v=0.52.0"></script>
 </body>
 </html>

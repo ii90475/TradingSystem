@@ -37,6 +37,17 @@ class TradingAPI {
 
     // ==================== Live Trading ====================
 
+    async getTradingMode() {
+        return this.request('/live/mode');
+    }
+
+    async setTradingMode(mode, confirmLive = false) {
+        return this.request('/live/mode', {
+            method: 'POST',
+            body: JSON.stringify({ mode, confirm_live: confirmLive }),
+        });
+    }
+
     async getLiveStatus() {
         return this.request('/live/status');
     }

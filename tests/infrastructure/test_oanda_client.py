@@ -18,24 +18,32 @@ from tradingsystem.core.oanda_trading import (
 
 @pytest.fixture
 def client():
-    """Create OANDA client for testing."""
+    """Create OANDA client for testing (default PAPER mode)."""
     with patch("tradingsystem.core.oanda_trading.settings") as mock_settings:
-        mock_settings.oanda_api_url = "https://api-fxpractice.oanda.com"
-        mock_settings.oanda_account_id = "101-001-12345-001"
-        mock_settings.oanda_api_key = "test-api-key"
+        mock_settings.oanda_paper_api_url = "https://api-fxpractice.oanda.com"
+        mock_settings.oanda_paper_account_id = "101-001-12345-001"
+        mock_settings.oanda_paper_api_key = "test-api-key"
+        mock_settings.oanda_api_url = "https://api-fxtrade.oanda.com"
+        mock_settings.oanda_account_id = "101-001-12345-002"
+        mock_settings.oanda_api_key = "live-api-key"
         mock_settings.live_trading_enabled = True
         yield OandaTradingClient()
 
 
 @pytest.fixture
 def client_live_disabled():
-    """Create OANDA client with live trading disabled."""
+    """Create OANDA client in LIVE mode with live trading disabled."""
     with patch("tradingsystem.core.oanda_trading.settings") as mock_settings:
-        mock_settings.oanda_api_url = "https://api-fxpractice.oanda.com"
-        mock_settings.oanda_account_id = "101-001-12345-001"
-        mock_settings.oanda_api_key = "test-api-key"
+        mock_settings.oanda_paper_api_url = "https://api-fxpractice.oanda.com"
+        mock_settings.oanda_paper_account_id = "101-001-12345-001"
+        mock_settings.oanda_paper_api_key = "test-api-key"
+        mock_settings.oanda_api_url = "https://api-fxtrade.oanda.com"
+        mock_settings.oanda_account_id = "101-001-12345-002"
+        mock_settings.oanda_api_key = "live-api-key"
         mock_settings.live_trading_enabled = False
-        yield OandaTradingClient()
+        c = OandaTradingClient()
+        c._trading_mode = "LIVE"
+        yield c
 
 
 @pytest.fixture

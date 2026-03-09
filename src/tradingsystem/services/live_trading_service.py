@@ -62,6 +62,7 @@ async def execute_live_trade(
         )
 
     # Step 2: Create local order record (PENDING)
+    current_mode = TradingMode(oanda_trading_client.trading_mode)
     local_order = await order_service.create_order(
         OrderCreate(
             instrument=instrument,
@@ -69,7 +70,7 @@ async def execute_live_trade(
             order_type=OrderType.MARKET,
             quantity=quantity,
             strategy_id=strategy_id,
-            mode=TradingMode.LIVE,
+            mode=current_mode,
         )
     )
 
@@ -172,6 +173,7 @@ async def close_live_trade(
     # Create closing order
     close_side = OrderSide.SELL if position.side == PositionSide.LONG else OrderSide.BUY
 
+    current_mode = TradingMode(oanda_trading_client.trading_mode)
     local_order = await order_service.create_order(
         OrderCreate(
             instrument=position.instrument,
@@ -179,7 +181,7 @@ async def close_live_trade(
             order_type=OrderType.MARKET,
             quantity=position.quantity,
             strategy_id=position.strategy_id,
-            mode=TradingMode.LIVE,
+            mode=current_mode,
         )
     )
 
@@ -274,7 +276,7 @@ async def get_live_account_status() -> dict:
         risk_status = risk_manager.get_risk_status()
 
         return {
-            "mode": "LIVE" if settings.live_trading_enabled else "PAPER",
+            "mode": oanda_trading_client.trading_mode,
             "oanda": {
                 "connected": oanda_status["connected"],
                 "error": oanda_status.get("error"),

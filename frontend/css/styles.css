@@ -44,6 +44,46 @@ body {
     color: var(--accent-blue);
 }
 
+/* Trading Mode Toggle */
+.trading-mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: background 0.2s, color 0.2s;
+    user-select: none;
+    margin-right: 8px;
+}
+
+.trading-mode-toggle.paper {
+    background: var(--accent-green);
+    color: #000;
+}
+
+.trading-mode-toggle.paper:hover {
+    background: #2ea043;
+}
+
+.trading-mode-toggle.live {
+    background: var(--accent-red);
+    color: #fff;
+    animation: live-pulse 2s ease-in-out infinite;
+}
+
+.trading-mode-toggle.live:hover {
+    background: #da3633;
+}
+
+@keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 .connection-status {
     display: flex;
     align-items: center;

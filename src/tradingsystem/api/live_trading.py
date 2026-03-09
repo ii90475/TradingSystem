@@ -46,6 +46,56 @@ class RiskCheckRequest(BaseModel):
     quantity: Decimal
 
 
+class TradingModeRequest(BaseModel):
+    """Request model for switching trading mode."""
+
+    mode: str  # "PAPER" or "LIVE"
+    confirm_live: bool = False  # Must be True to switch to LIVE
+
+
+@router.get("/mode")
+async def get_trading_mode() -> dict:
+    """Get current trading mode (PAPER or LIVE)."""
+    return {
+        "mode": oanda_trading_client.trading_mode,
+        "live_trading_enabled": settings.live_trading_enabled,
+    }
+
+
+@router.post("/mode")
+async def set_trading_mode(request: TradingModeRequest) -> dict:
+    """
+    Switch trading mode between PAPER and LIVE.
+
+    Switching to LIVE requires confirm_live=true and LIVE_TRADING_ENABLED=true.
+    """
+    mode = request.mode.upper()
+    if mode not in ("PAPER", "LIVE"):
+        raise HTTPException(status_code=400, detail="Mode must be PAPER or LIVE")
+
+    if mode == "LIVE":
+        if not settings.live_trading_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail="Live trading is disabled. Set LIVE_TRADING_ENABLED=true to enable.",
+            )
+        if not request.confirm_live:
+            raise HTTPException(
+                status_code=400,
+                detail="Must set confirm_live=true to switch to LIVE mode.",
+            )
+
+    try:
+        oanda_trading_client.set_trading_mode(mode)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "mode": oanda_trading_client.trading_mode,
+        "message": f"Trading mode switched to {mode}",
+    }
+
+
 @router.get("/status")
 async def get_live_status() -> dict:
     """
@@ -99,12 +149,13 @@ async def get_open_trades() -> list[dict]:
 @router.post("/trade", response_model=LiveTradeResponse)
 async def execute_live_trade(request: LiveTradeRequest) -> LiveTradeResponse:
     """
-    Execute a live trade through Oanda.
+    Execute a trade through Oanda.
 
-    Requires LIVE_TRADING_ENABLED=true in environment.
+    Uses the current trading mode (PAPER or LIVE) to select the correct OANDA environment.
+    LIVE mode requires LIVE_TRADING_ENABLED=true in environment.
     Trade must pass all risk checks before execution.
     """
-    if not settings.live_trading_enabled:
+    if oanda_trading_client.trading_mode == "LIVE" and not settings.live_trading_enabled:
         raise HTTPException(
             status_code=403,
             detail="Live trading is disabled. Set LIVE_TRADING_ENABLED=true to enable.",
@@ -136,8 +187,8 @@ async def execute_live_trade(request: LiveTradeRequest) -> LiveTradeResponse:
 
 @router.post("/trade/{position_id}/close")
 async def close_live_trade(position_id: UUID) -> dict:
-    """Close a live trade by position ID."""
-    if not settings.live_trading_enabled:
+    """Close a trade by position ID."""
+    if oanda_trading_client.trading_mode == "LIVE" and not settings.live_trading_enabled:
         raise HTTPException(
             status_code=403,
             detail="Live trading is disabled.",
@@ -169,7 +220,7 @@ async def emergency_close_all() -> dict:
 
     Use with caution - this will close ALL positions immediately.
     """
-    if not settings.live_trading_enabled:
+    if oanda_trading_client.trading_mode == "LIVE" and not settings.live_trading_enabled:
         raise HTTPException(
             status_code=403,
             detail="Live trading is disabled.",
