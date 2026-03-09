@@ -308,7 +308,13 @@ class TradingApp {
                     <span class="chart-list-item-name">${this.escapeHtml(c.name)}</span>
                     <span class="chart-list-item-pair">${c.instrument.replace('_', '/')}</span>
                 </div>
-                <span class="chart-list-item-period">${periodLabels[c.period] || c.period}</span>
+                <div class="chart-list-item-right">
+                    <span class="chart-list-item-period">${periodLabels[c.period] || c.period}</span>
+                    <div class="chart-list-item-actions">
+                        <button class="chart-action-btn rename" onclick="event.stopPropagation(); app.renameChart('${c.id}')" title="Rename">✎</button>
+                        <button class="chart-action-btn delete" onclick="event.stopPropagation(); app.deleteChart('${c.id}')" title="Delete">×</button>
+                    </div>
+                </div>
             </div>
         `).join('');
     }
@@ -331,6 +337,53 @@ class TradingApp {
 
     getActiveChart() {
         return this.charts.find(c => c.id === this.activeChartId) || null;
+    }
+
+    async renameChart(chartId) {
+        const chart = this.charts.find(c => c.id === chartId);
+        if (!chart) return;
+
+        const newName = prompt('Rename chart:', chart.name);
+        if (!newName || newName.trim() === '' || newName.trim() === chart.name) return;
+
+        try {
+            await api.updateChart(chartId, { name: newName.trim() });
+            await this.loadCharts();
+            this.showToast(`Chart renamed to "${newName.trim()}"`, 'success');
+        } catch (error) {
+            this.showToast(error.message || 'Failed to rename chart', 'error');
+        }
+    }
+
+    async deleteChart(chartId) {
+        if (this.charts.length <= 1) {
+            this.showToast('Cannot delete the last chart', 'warning');
+            return;
+        }
+
+        const chart = this.charts.find(c => c.id === chartId);
+        if (!chart) return;
+
+        if (!confirm(`Delete chart "${chart.name}"?`)) return;
+
+        try {
+            await api.deleteChart(chartId);
+
+            if (chartId === this.activeChartId) {
+                this.activeChartId = null;
+            }
+
+            await this.loadCharts();
+
+            if (this.activeChartId) {
+                await this.loadChartData();
+                this.reloadAllIndicators();
+            }
+
+            this.showToast(`Chart "${chart.name}" deleted`, 'success');
+        } catch (error) {
+            this.showToast(error.message || 'Failed to delete chart', 'error');
+        }
     }
 
     async switchPeriod(period) {

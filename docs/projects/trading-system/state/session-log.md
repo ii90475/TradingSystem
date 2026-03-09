@@ -165,3 +165,59 @@
 - Docker rebuild is orchestrator's responsibility, not the user's. Added to CLAUDE.md commit workflow.
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-08 (continued, v0.48.3–v0.48.4)
+
+**Accomplished:**
+- Fixed chart strategy modal robustness (v0.48.3):
+  - Added name field to ChartStrategy model, service, API, and frontend modal
+  - Added database migrations: charts table schema migration (instrument/period → name/series_id), chart_indicators column rename (series_id → chart_id), chart_strategies table creation with name column backfill
+  - Fixed strategy registry duplicate registration (16 strategies → 8): skip classes already registered via @register decorator during auto-discovery
+- Dashboard UI overhaul (v0.48.4):
+  - Replaced overflowing chart tab bar with sidebar chart selector panel
+  - Added period selector buttons (1m, 5m, 15m, 1H, 4H, 1D) with switchPeriod() to find or auto-create charts
+  - Removed hardcoded SMA/MA overlay lines from chart — indicators only come from the indicator system
+  - Fixed ghost indicators: session-restored indicators rendered on chart but sidebar showed "0/10" because renderActiveIndicators()/updateIndicatorCount() were not called after session restore
+  - Added NoCacheStaticMiddleware (Cache-Control: no-cache) to prevent stale browser caches
+  - Added TradingView-style price axis improvements: ticksVisible, crosshair label styling
+  - Fixed layout alignment: header flex-shrink, account chip sizing, chart-area flush layout
+- Both versions committed, tagged, pushed, Docker rebuilt and verified healthy
+
+**Remaining:**
+- Issue #11: Plain English strategy creation UI (unblocked)
+- Issues #6-7: Chart Management UI (partially done — chart CRUD exists, UI list in sidebar)
+- Issues #8-10: Strategy Assignment UI (partially done — modal works, needs paper/live toggle)
+- Issue #12: Paper/Live trading toggle (separate milestone issue)
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:**
+- Charts moved from tab bar to sidebar list (user decision — tabs don't scale with 15+ charts)
+- Hardcoded SMA removed — all chart overlays should come from the indicator system only
+- Period switching creates new charts on-demand if no chart exists for instrument+period
+
+**Blockers:** None
+
+---
+
+## Session: 2026-03-09
+
+**Accomplished:**
+- Completed Issues #6 and #7: Chart Creation UI and Chart Selector/Switcher (v0.49.0)
+  - Added rename chart: pencil button on sidebar chart list items, prompt-based rename, calls PATCH /charts/{id}
+  - Added delete chart: × button on sidebar chart list items, confirmation dialog, prevents deleting last chart, auto-selects another chart if active chart deleted
+  - Added api.updateChart() method to frontend API client
+  - Action buttons appear on hover, delete button turns red on hover for visual warning
+  - Cache-bust version bumped to 0.49.4
+  - Note: chart creation, switching, period buttons, indicator binding, and session persistence were already complete from v0.48.3–v0.48.4
+
+**Remaining:**
+- Issue #8-10: Strategy Assignment UI (partially done — modal works)
+- Issue #11: Plain English strategy creation UI (unblocked)
+- Issue #12: Paper/Live trading toggle
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:** None new
+
+**Blockers:** None

@@ -176,6 +176,48 @@ body {
     color: var(--accent-blue);
 }
 
+.chart-list-item-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.chart-list-item-actions {
+    display: none;
+    gap: 2px;
+}
+
+.chart-list-item:hover .chart-list-item-actions {
+    display: flex;
+}
+
+.chart-action-btn {
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.chart-action-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.chart-action-btn.delete:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
 /* Panel header inline button */
 .panel-header .btn-small {
     padding: 2px 8px;

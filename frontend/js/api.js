@@ -228,6 +228,13 @@ class TradingAPI {
         });
     }
 
+    async updateChart(chartId, data) {
+        return this.request(`/charts/${chartId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
     async deleteChart(chartId) {
         return this.request(`/charts/${chartId}`, {
             method: 'DELETE',
