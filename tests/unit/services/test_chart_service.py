@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from tradingsystem.models.chart import Chart, ChartCreate
+from tradingsystem.models.chart import Chart, ChartCreate, ChartDetail
 from tradingsystem.services import chart_service
 
 
@@ -31,6 +31,16 @@ def sample_chart_row():
         "name": "Euro Scalper",
         "series_id": uuid4(),
         "created_at": datetime.now(timezone.utc),
+    }
+
+
+@pytest.fixture
+def sample_chart_detail_row(sample_chart_row):
+    """Create sample chart data with series info for list_charts."""
+    return {
+        **sample_chart_row,
+        "instrument": "EUR_USD",
+        "period": "H1",
     }
 
 
@@ -92,9 +102,9 @@ class TestListCharts:
     """Tests for list_charts function."""
 
     @pytest.mark.asyncio
-    async def test_returns_charts(self, mock_cursor, sample_chart_row):
-        """Should return list of charts."""
-        mock_cursor.fetchall.return_value = [sample_chart_row]
+    async def test_returns_charts(self, mock_cursor, sample_chart_detail_row):
+        """Should return list of charts with series info."""
+        mock_cursor.fetchall.return_value = [sample_chart_detail_row]
 
         with patch("tradingsystem.services.chart_service.get_cursor") as mock_get:
             mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
@@ -103,7 +113,9 @@ class TestListCharts:
             result = await chart_service.list_charts()
 
             assert len(result) == 1
-            assert isinstance(result[0], Chart)
+            assert isinstance(result[0], ChartDetail)
+            assert result[0].instrument == "EUR_USD"
+            assert result[0].period == "H1"
 
     @pytest.mark.asyncio
     async def test_returns_empty_list(self, mock_cursor):

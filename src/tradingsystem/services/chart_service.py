@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 
 from tradingsystem.core.database import get_cursor
-from tradingsystem.models.chart import Chart, ChartCreate
+from tradingsystem.models.chart import Chart, ChartCreate, ChartDetail
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +52,19 @@ async def get_chart(chart_id: UUID) -> Chart | None:
         return Chart(**row) if row else None
 
 
-async def list_charts() -> list[Chart]:
-    """List all charts."""
+async def list_charts() -> list[ChartDetail]:
+    """List all charts with series instrument and period."""
     async with get_cursor() as cur:
         await cur.execute(
             """
-            SELECT id, name, series_id, created_at
-            FROM charts
-            ORDER BY created_at
+            SELECT c.id, c.name, c.series_id, s.instrument, s.period, c.created_at
+            FROM charts c
+            JOIN series s ON c.series_id = s.id
+            ORDER BY c.created_at
             """
         )
         rows = await cur.fetchall()
-        return [Chart(**row) for row in rows]
+        return [ChartDetail(**row) for row in rows]
 
 
 async def list_charts_for_series(series_id: UUID) -> list[Chart]:

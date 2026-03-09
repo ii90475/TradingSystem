@@ -23,5 +23,12 @@ while ! curl -sf --max-time 5 http://localhost:8000/health &>/dev/null; do
 done
 log "RateService is healthy"
 
+# Clear port 8002 if still occupied from a previous run
+if lsof -ti:8002 &>/dev/null; then
+    log "Port 8002 in use, killing existing process..."
+    lsof -ti:8002 | xargs kill -9 2>/dev/null
+    sleep 1
+fi
+
 log "Starting TradingSystem..."
 exec /Users/jamesconsole/.pyenv/versions/tradingsystem/bin/python -m uvicorn tradingsystem.main:app --host 0.0.0.0 --port 8002

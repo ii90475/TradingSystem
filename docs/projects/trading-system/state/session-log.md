@@ -85,3 +85,72 @@
 - Commit workflow standardized: code+docs are a package, always show current tag and ask user what tag to use, detailed commit messages, tag and push
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-08 (night)
+
+**Accomplished:**
+- Completed Issue #3: Create chart_strategies table (v0.46.0)
+  - New chart_strategies table (chart_id FK, strategy_id, parameters JSONB, enabled, timestamps)
+  - Migration from strategy_instances → chart_strategies (auto-creates series/charts, migrates data, drops old table)
+  - New ChartStrategy model, chart_strategy_service, chart_strategies API router (full CRUD + toggle + backtest)
+  - Frontend refactored: chart select replaces name/instrument/period fields in modal
+  - Removed old strategy_instance model/service/API files
+  - 25 new tests, 1007 total passing
+- Completed Issue #4: Plain English strategy creation backend (v0.47.0)
+  - strategy_generator_service: Claude (Sonnet) generates BaseStrategy Python code from plain English
+  - System prompt with full framework docs, example strategy, strict output rules
+  - Code validation: syntax, required patterns, security scanning (blocks os, subprocess, eval, exec, open)
+  - POST /strategies/generate and POST /strategies/save endpoints
+  - Generated strategies saved to strategies/generated/, auto-discovered on startup
+  - Added anthropic>=0.40.0 dependency, anthropic_api_key to config
+  - 23 new tests, 1030 total passing
+- Completed Issue #5: Strategy validation and testing endpoint (v0.48.0)
+  - POST /strategies/test: accepts code + instrument + period + date range, runs on historical data
+  - Dynamic code loading via temp file + importlib, no-op StrategyRegistry decorator (no side effects)
+  - Returns signals generated and stats (total/buy/sell counts, candles analyzed, date range)
+  - 7 new tests, 1037 total passing
+
+**Remaining:**
+- Wave 1 complete (Issues #1-3)
+- Strategy Authoring track complete (Issues #4-5)
+- Issue #11: Plain English strategy creation UI (depends on #4-5, unblocked)
+- Issues #6-7: Chart Management UI (unblocked)
+- Issues #8-10: Strategy Assignment UI (unblocked)
+- Issue #12: Paper/Live trading toggle (unblocked)
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:** None new
+
+**Blockers:** None
+
+---
+
+## Session: 2026-03-08 (late night)
+
+**Accomplished:**
+- Diagnosed and fixed http://localhost:8002/ui outage
+  - Root cause: Docker image not rebuilt after Issues #2-5 code changes; stale local RateService process hogging port 8000 prevented Docker from binding
+  - Killed hung local process, stopped conflicting launchctl service, user restarted Docker compose stack
+- Logged FailPoint #7: "Did Not Rebuild Docker Image After Code Changes"
+  - Updated FailPoints.md in AgentTeam repo (ClaudeCodingProjectSetup)
+  - Deleted duplicate FailPoints.md that was incorrectly created at /Users/jamesconsole/Code/FailPoints.md
+- Updated agent definitions (patch v1.1.1) in both repos:
+  - Implementer: added Deployment section (Docker rebuild, port conflicts, endpoint verification)
+  - Validator: added Deployment Verification checklist (image rebuild check, stale container detection, endpoint response)
+  - Updated in: agents/definitions/, .claude/agents/, and ClaudeCodingProjectSetup/agents/definitions/
+
+**Remaining:**
+- Uncommitted changes on master: ChartDetail model, list_charts JOIN, frontend updates, start-with-deps.sh port clearing
+- Docker image needs rebuild to include uncommitted changes: `docker compose up -d --build tradingsystem`
+- Issue #11: Plain English strategy creation UI (unblocked)
+- Issues #6-7: Chart Management UI (unblocked)
+- Issues #8-10: Strategy Assignment UI (unblocked)
+- Issue #12: Paper/Live trading toggle (unblocked)
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:**
+- Everything runs in Docker — this is a long-standing requirement for portability. No local launchctl fallback.
+
+**Blockers:** None

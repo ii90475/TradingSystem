@@ -22,6 +22,17 @@ class Chart(BaseModel):
     created_at: datetime
 
 
+class ChartDetail(BaseModel):
+    """Chart with its series instrument and period."""
+
+    id: UUID
+    name: str
+    series_id: UUID
+    instrument: str
+    period: str
+    created_at: datetime
+
+
 class ChartIndicatorCreate(BaseModel):
     """Request model for adding an indicator to a chart."""
 

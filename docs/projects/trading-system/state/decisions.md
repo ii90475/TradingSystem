@@ -67,3 +67,13 @@
 **Rationale:** User identified drift where commits were being discussed piecemeal or docs shipped separately. Standardizing prevents fragmented state.
 
 **Made by:** User (explicit directive)
+
+---
+
+## 2026-03-08: Docker-Only Deployment
+
+**Decision:** Everything runs in Docker. No local launchctl fallback. This is a portability requirement.
+
+**Rationale:** User confirmed this is a long-standing requirement. The launchctl plist approach caused port conflicts with Docker and left stale processes. Single deployment method eliminates ambiguity.
+
+**Made by:** User (explicit directive)

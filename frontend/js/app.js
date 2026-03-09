@@ -27,6 +27,9 @@ class TradingApp {
         this.chartStrategies = [];
         this.availableStrategies = [];
         this.editingStrategyId = null;
+        // Chart management state
+        this.charts = [];
+        this.activeChartId = null;
         this.indicatorColors = [
             '#58a6ff', '#f0883e', '#a371f7', '#3fb950', '#f85149',
             '#db61a2', '#79c0ff', '#d29922', '#8b949e', '#7ee787'
@@ -38,7 +41,6 @@ class TradingApp {
     // ==================== Session Persistence ====================
 
     restoreSessionState() {
-        // First try localStorage for fast initial load (will be updated from API later)
         try {
             const saved = localStorage.getItem('tradingSystemSession');
             if (saved) {
@@ -46,7 +48,7 @@ class TradingApp {
                 this.currentInstrument = state.instrument || 'EUR_USD';
                 this.currentPeriod = state.period || 'M5';
                 this.activeIndicators = state.indicators || [];
-                console.log('Restored session from cache:', this.currentInstrument, this.currentPeriod, this.activeIndicators.length, 'indicators');
+                this.activeChartId = state.activeChartId || null;
             }
         } catch (e) {
             console.warn('Failed to restore session from cache:', e);
@@ -54,13 +56,12 @@ class TradingApp {
     }
 
     async restoreSessionFromAPI() {
-        // Fetch from API (source of truth) and update local state
         try {
             const session = await api.getSession();
             if (session) {
                 this.currentInstrument = session.instrument || 'EUR_USD';
                 this.currentPeriod = session.period || 'M5';
-                // Map API format to frontend format
+                this.activeChartId = session.active_chart_id || this.activeChartId;
                 this.activeIndicators = (session.indicators || []).map(ind => ({
                     id: ind.id,
                     name: ind.name,
@@ -69,8 +70,6 @@ class TradingApp {
                     color: ind.color,
                     visible: ind.visible !== false,
                 }));
-                console.log('Restored session from API:', this.currentInstrument, this.currentPeriod, this.activeIndicators.length, 'indicators');
-                // Cache to localStorage
                 this.cacheSessionToLocalStorage();
                 return true;
             }
@@ -86,6 +85,7 @@ class TradingApp {
                 instrument: this.currentInstrument,
                 period: this.currentPeriod,
                 indicators: this.activeIndicators,
+                activeChartId: this.activeChartId,
             };
             localStorage.setItem('tradingSystemSession', JSON.stringify(state));
         } catch (e) {
@@ -94,12 +94,11 @@ class TradingApp {
     }
 
     async saveSessionState() {
-        // Save to API (source of truth)
         try {
             const sessionData = {
                 instrument: this.currentInstrument,
                 period: this.currentPeriod,
-                // Map frontend format to API format
+                active_chart_id: this.activeChartId,
                 indicators: this.activeIndicators.map(ind => ({
                     id: ind.id,
                     name: ind.name,
@@ -110,11 +109,9 @@ class TradingApp {
                 })),
             };
             await api.saveSession(sessionData);
-            // Also cache to localStorage for fast reload
             this.cacheSessionToLocalStorage();
         } catch (e) {
             console.warn('Failed to save session to API:', e);
-            // Still cache locally as fallback
             this.cacheSessionToLocalStorage();
         }
     }
@@ -125,9 +122,6 @@ class TradingApp {
         // Initialize chart
         this.chart = new ChartManager('chart');
         this.chart.init();
-
-        // Apply restored session state to UI
-        this.applySessionStateToUI();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -141,32 +135,12 @@ class TradingApp {
         console.log('Dashboard initialized');
     }
 
-    applySessionStateToUI() {
-        // Update instrument tabs
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.instrument === this.currentInstrument);
-        });
-
-        // Update timeframe buttons
-        document.querySelectorAll('.tf-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.period === this.currentPeriod);
-        });
-
-        // Update indicator count
-        this.updateIndicatorCount();
-        this.renderActiveIndicators();
-    }
-
     setupEventListeners() {
-        // Instrument tabs
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', (e) => this.handleInstrumentChange(e));
-        });
-
-        // Timeframe buttons
-        document.querySelectorAll('.tf-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.handleTimeframeChange(e));
-        });
+        // New chart button
+        const newChartBtn = document.getElementById('new-chart-btn');
+        if (newChartBtn) {
+            newChartBtn.addEventListener('click', () => this.showNewChartModal());
+        }
 
         // Order type toggle
         document.querySelectorAll('.order-type-btn').forEach(btn => {
@@ -195,10 +169,32 @@ class TradingApp {
             });
         });
 
-        // Indicator select - add on change (no + button needed)
+        // Indicator select
         const indicatorSelect = document.getElementById('indicator-select');
         if (indicatorSelect) {
             indicatorSelect.addEventListener('change', () => this.addSelectedIndicator());
+        }
+
+        // Auto-generate chart name when instrument/period changes in new chart modal
+        const ncInstrument = document.getElementById('nc-instrument');
+        const ncPeriod = document.getElementById('nc-period');
+        if (ncInstrument && ncPeriod) {
+            const updateName = () => {
+                const nameInput = document.getElementById('nc-name');
+                if (nameInput && !nameInput.dataset.userEdited) {
+                    const inst = ncInstrument.value.replace('_', '/');
+                    const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'H1', H4:'H4', D:'Daily'};
+                    nameInput.value = `${inst} ${periodLabels[ncPeriod.value] || ncPeriod.value}`;
+                }
+            };
+            ncInstrument.addEventListener('change', updateName);
+            ncPeriod.addEventListener('change', updateName);
+            const nameInput = document.getElementById('nc-name');
+            if (nameInput) {
+                nameInput.addEventListener('input', () => {
+                    nameInput.dataset.userEdited = 'true';
+                });
+            }
         }
     }
 
@@ -210,7 +206,6 @@ class TradingApp {
             if (toggle) {
                 toggle.textContent = sidebar.classList.contains('collapsed') ? '‹' : '›';
             }
-            // Trigger chart resize after transition
             setTimeout(() => {
                 if (this.chart && this.chart.chart) {
                     this.chart.chart.applyOptions({
@@ -222,20 +217,17 @@ class TradingApp {
     }
 
     async loadInitialData() {
-        // Show loading state
         this.updateConnectionStatus(false);
 
         try {
-            // Check API health
             await api.getHealth();
             this.updateConnectionStatus(true);
 
-            // Restore session from API (source of truth)
-            const apiRestored = await this.restoreSessionFromAPI();
-            if (apiRestored) {
-                // Update UI with restored state
-                this.applySessionStateToUI();
-            }
+            // Restore session from API
+            await this.restoreSessionFromAPI();
+
+            // Load charts list first
+            await this.loadCharts();
 
             // Load data in parallel
             await Promise.all([
@@ -245,30 +237,167 @@ class TradingApp {
                 this.loadSignals(),
             ]);
 
-            // Load indicators and chart strategies in background (non-blocking)
+            // Load indicators and chart strategies in background
             this.loadAvailableIndicators();
             this.loadChartStrategies();
 
             // Restore saved indicators on chart
             if (this.activeIndicators.length > 0) {
-                console.log('Restoring', this.activeIndicators.length, 'saved indicators');
                 await this.reloadAllIndicators();
             }
 
-            // Connect to WebSocket for real-time rates
             this.connectRatesWebSocket();
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showToast('Failed to connect to server', 'error');
-
-            // Load mock data for chart
             this.chart.loadMockData();
         }
     }
 
+    // ==================== Chart Management ====================
+
+    async loadCharts() {
+        try {
+            this.charts = await api.getCharts();
+        } catch (error) {
+            console.error('Failed to load charts:', error);
+            this.charts = [];
+        }
+
+        // If we have a saved activeChartId, verify it still exists
+        if (this.activeChartId) {
+            const exists = this.charts.find(c => c.id === this.activeChartId);
+            if (!exists) {
+                this.activeChartId = null;
+            }
+        }
+
+        // Auto-select first chart if none selected
+        if (!this.activeChartId && this.charts.length > 0) {
+            this.activeChartId = this.charts[0].id;
+        }
+
+        // Apply active chart to state
+        if (this.activeChartId) {
+            const activeChart = this.charts.find(c => c.id === this.activeChartId);
+            if (activeChart) {
+                this.currentInstrument = activeChart.instrument;
+                this.currentPeriod = activeChart.period;
+            }
+        }
+
+        this.renderChartTabs();
+    }
+
+    renderChartTabs() {
+        const container = document.getElementById('chart-tab-list');
+        if (!container) return;
+
+        if (this.charts.length === 0) {
+            container.innerHTML = '<div class="chart-tabs-empty">No charts — click + to create one</div>';
+            return;
+        }
+
+        const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'H1', H4:'H4', D:'Daily'};
+
+        container.innerHTML = this.charts.map(c => `
+            <div class="chart-tab ${c.id === this.activeChartId ? 'active' : ''}"
+                 data-chart-id="${c.id}"
+                 onclick="app.selectChart('${c.id}')">
+                <span class="chart-tab-name">${this.escapeHtml(c.name)}</span>
+                <span class="chart-tab-subtitle">${c.instrument.replace('_', '/')} · ${periodLabels[c.period] || c.period}</span>
+            </div>
+        `).join('');
+    }
+
+    async selectChart(chartId) {
+        if (chartId === this.activeChartId) return;
+
+        const chart = this.charts.find(c => c.id === chartId);
+        if (!chart) return;
+
+        this.activeChartId = chartId;
+        this.currentInstrument = chart.instrument;
+        this.currentPeriod = chart.period;
+
+        this.renderChartTabs();
+        this.saveSessionState();
+        await this.loadChartData();
+        this.reloadAllIndicators();
+    }
+
+    getActiveChart() {
+        return this.charts.find(c => c.id === this.activeChartId) || null;
+    }
+
+    showNewChartModal() {
+        const modal = document.getElementById('new-chart-modal');
+        if (!modal) return;
+
+        const form = document.getElementById('new-chart-form');
+        if (form) form.reset();
+
+        // Clear user-edited flag
+        const nameInput = document.getElementById('nc-name');
+        if (nameInput) {
+            delete nameInput.dataset.userEdited;
+            // Set default name
+            const inst = document.getElementById('nc-instrument').value.replace('_', '/');
+            const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'H1', H4:'H4', D:'Daily'};
+            const period = document.getElementById('nc-period').value;
+            nameInput.value = `${inst} ${periodLabels[period] || period}`;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    hideNewChartModal() {
+        const modal = document.getElementById('new-chart-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async handleNewChartSubmit(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('nc-submit-btn');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
+
+        try {
+            const instrument = document.getElementById('nc-instrument').value;
+            const period = document.getElementById('nc-period').value;
+            const name = document.getElementById('nc-name').value.trim();
+
+            // Get or create the series
+            const series = await api.getSeriesByInstrument(instrument, period);
+
+            // Create the chart
+            const newChart = await api.createChart({
+                name: name,
+                series_id: series.id,
+            });
+
+            this.hideNewChartModal();
+            this.showToast(`Chart "${name}" created`, 'success');
+
+            // Reload charts and select the new one
+            await this.loadCharts();
+            await this.selectChart(newChart.id);
+
+        } catch (error) {
+            this.showToast(error.message || 'Failed to create chart', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+
+    // ==================== WebSocket ====================
+
     connectRatesWebSocket() {
         if (this.ratesWebSocket && this.ratesWebSocket.readyState === WebSocket.OPEN) {
-            return; // Already connected
+            return;
         }
 
         const wsUrl = api.getWebSocketUrl();
@@ -308,13 +437,11 @@ class TradingApp {
 
     handleWebSocketMessage(message) {
         if (message.type === 'rates' && message.data) {
-            // Find rate for current instrument
             const rate = message.data.find(r => r.pair === this.currentInstrument);
             if (rate) {
                 this.lastRate = rate;
                 this.updateRateDisplay(rate);
 
-                // Update chart's current price line
                 if (this.chart && rate.mid) {
                     this.chart.updateCurrentPrice(rate.mid);
                 }
@@ -343,7 +470,6 @@ class TradingApp {
     }
 
     startHttpPolling() {
-        // Fallback to HTTP polling if WebSocket fails
         if (this.rateRefreshInterval) return;
 
         console.log('Starting HTTP polling fallback for rates');
@@ -353,6 +479,8 @@ class TradingApp {
             }
         }, 2000);
     }
+
+    // ==================== Data Loading ====================
 
     async loadAccountData() {
         try {
@@ -408,9 +536,14 @@ class TradingApp {
             titleEl.textContent = instrument.replace('_', '/');
         }
 
-        await this.chart.loadData(instrument, period);
+        // Update period badge
+        const periodBadge = document.getElementById('chart-period-badge');
+        if (periodBadge) {
+            const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'1H', H4:'4H', D:'1D'};
+            periodBadge.textContent = periodLabels[period] || period;
+        }
 
-        // Also load current rate for real-time price
+        await this.chart.loadData(instrument, period);
         await this.loadCurrentRate();
     }
 
@@ -420,7 +553,6 @@ class TradingApp {
             this.lastRate = rate;
             this.updateRateDisplay(rate);
 
-            // Update chart's current price line
             if (this.chart && rate.mid) {
                 this.chart.updateCurrentPrice(rate.mid);
             }
@@ -435,17 +567,13 @@ class TradingApp {
         try {
             const data = await api.getAvailableIndicators();
 
-            // Limit to most common/useful indicators for performance
             const commonIndicators = new Set([
-                // Overlay (on price)
                 'sma', 'ema', 'wma', 'bbands', 'vwap', 'kc', 'dema', 'tema',
                 'ichimoku', 'supertrend', 'psar',
-                // Pane (below chart)
                 'rsi', 'macd', 'stoch', 'stochrsi', 'cci', 'mfi', 'willr',
                 'atr', 'adx', 'aroon', 'ao', 'obv', 'cmf', 'mom', 'roc',
             ]);
 
-            // Combine and filter to common indicators only
             const allIndicators = [
                 ...(data.custom || []),
                 ...(data.pandas_ta || [])
@@ -465,14 +593,11 @@ class TradingApp {
         const select = document.getElementById('indicator-select');
         if (!select) return;
 
-        // Clear existing options except the first
         select.innerHTML = '<option value="">Select indicator...</option>';
 
-        // Group indicators by type
         const overlayIndicators = this.availableIndicators.filter(i => i.display_type === 'overlay');
         const paneIndicators = this.availableIndicators.filter(i => i.display_type === 'pane');
 
-        // Add overlay group
         if (overlayIndicators.length > 0) {
             const overlayGroup = document.createElement('optgroup');
             overlayGroup.label = 'Overlay (on price)';
@@ -486,7 +611,6 @@ class TradingApp {
             select.appendChild(overlayGroup);
         }
 
-        // Add pane group
         if (paneIndicators.length > 0) {
             const paneGroup = document.createElement('optgroup');
             paneGroup.label = 'Pane (below chart)';
@@ -509,19 +633,16 @@ class TradingApp {
         const selectedOption = select.options[select.selectedIndex];
         const displayType = selectedOption.dataset.displayType || 'pane';
 
-        // Check if already added
         if (this.activeIndicators.find(i => i.name === indicatorName)) {
             this.showToast(`${indicatorName.toUpperCase()} already added`, 'warning');
             return;
         }
 
-        // Check max limit
         if (this.activeIndicators.length >= this.maxIndicators) {
             this.showToast(`Maximum ${this.maxIndicators} indicators allowed`, 'warning');
             return;
         }
 
-        // Get indicator info for default params
         let params = {};
         try {
             const info = await api.getIndicatorInfo(indicatorName);
@@ -530,11 +651,9 @@ class TradingApp {
             console.log('Using empty params for', indicatorName);
         }
 
-        // Assign color
         const colorIndex = this.activeIndicators.length % this.indicatorColors.length;
         const color = this.indicatorColors[colorIndex];
 
-        // Add to active list
         const indicator = {
             id: Date.now(),
             name: indicatorName,
@@ -545,13 +664,11 @@ class TradingApp {
         };
         this.activeIndicators.push(indicator);
 
-        // Reset select
         select.value = '';
         this.updateIndicatorCount();
         this.renderActiveIndicators();
         this.saveSessionState();
 
-        // Calculate and render on chart
         await this.calculateAndRenderIndicator(indicator);
     }
 
@@ -559,14 +676,10 @@ class TradingApp {
         const index = this.activeIndicators.findIndex(i => i.id === indicatorId);
         if (index === -1) return;
 
-        const indicator = this.activeIndicators[index];
-
-        // Remove from chart
         if (this.chart) {
-            this.chart.removeIndicator(indicator.id);
+            this.chart.removeIndicator(indicatorId);
         }
 
-        // Remove from list
         this.activeIndicators.splice(index, 1);
         this.updateIndicatorCount();
         this.renderActiveIndicators();
@@ -623,27 +736,24 @@ class TradingApp {
 
     async calculateAndRenderIndicator(indicator) {
         try {
-            console.log(`Calculating indicator ${indicator.name} for ${this.currentInstrument}/${this.currentPeriod}`);
             const result = await api.calculateIndicator(
                 this.currentInstrument,
                 this.currentPeriod,
                 indicator.name,
                 indicator.params,
-                500 // Get more candles for indicator calculation
+                500
             );
 
-            console.log(`Indicator ${indicator.name} result:`, result.values?.length || 0, 'values');
             if (this.chart && result.values && result.values.length > 0) {
                 this.chart.addIndicator(indicator, result.values);
             }
         } catch (error) {
-            console.error(`Failed to calculate indicator ${indicator.name}:`, error.message, error);
+            console.error(`Failed to calculate indicator ${indicator.name}:`, error.message);
             this.showToast(`Failed to load ${indicator.name.toUpperCase()}: ${error.message}`, 'error');
         }
     }
 
     async reloadAllIndicators() {
-        // Called when instrument or period changes
         for (const indicator of this.activeIndicators) {
             await this.calculateAndRenderIndicator(indicator);
         }
@@ -656,7 +766,6 @@ class TradingApp {
             this.chartStrategies = await api.getChartStrategies();
             this.renderChartStrategies();
 
-            // Also load available strategies for the modal
             this.availableStrategies = await api.getAvailableStrategies();
             this.populateStrategySelect();
         } catch (error) {
@@ -670,10 +779,8 @@ class TradingApp {
         const select = document.getElementById('si-strategy');
         if (!select) return;
 
-        // Clear existing options except the first
         select.innerHTML = '<option value="">Select strategy...</option>';
 
-        // Deduplicate strategies by ID
         const seen = new Set();
         const uniqueStrategies = this.availableStrategies.filter(s => {
             if (seen.has(s.id)) return false;
@@ -741,13 +848,11 @@ class TradingApp {
 
         if (!modal || !form) return;
 
-        // Populate chart dropdown
         await this.populateChartSelect();
 
         this.editingStrategyId = csId;
 
         if (csId) {
-            // Edit mode
             const cs = this.chartStrategies.find(i => i.id === csId);
             if (!cs) return;
 
@@ -762,7 +867,6 @@ class TradingApp {
             document.getElementById('si-params').value = JSON.stringify(cs.parameters, null, 2);
             document.getElementById('si-enabled').checked = cs.enabled;
         } else {
-            // Create mode
             title.textContent = 'New Chart Strategy';
             submitBtn.textContent = 'Create';
             form.reset();
@@ -786,7 +890,8 @@ class TradingApp {
             charts.forEach(chart => {
                 const option = document.createElement('option');
                 option.value = chart.id;
-                option.textContent = chart.name;
+                const subtitle = chart.instrument ? ` (${chart.instrument.replace('_','/')} · ${chart.period})` : '';
+                option.textContent = chart.name + subtitle;
                 select.appendChild(option);
             });
         } catch (error) {
@@ -816,7 +921,6 @@ class TradingApp {
             const paramsStr = document.getElementById('si-params').value.trim();
             const enabled = document.getElementById('si-enabled').checked;
 
-            // Parse parameters
             let parameters = {};
             if (paramsStr) {
                 try {
@@ -828,14 +932,12 @@ class TradingApp {
             }
 
             if (this.editingStrategyId) {
-                // Update existing
                 await api.updateChartStrategy(this.editingStrategyId, {
                     parameters,
                     enabled,
                 });
                 this.showToast('Chart strategy updated', 'success');
             } else {
-                // Create new
                 await api.createChartStrategy({
                     chart_id: chartId,
                     strategy_id: strategyId,
@@ -894,7 +996,6 @@ class TradingApp {
             const result = await api.runChartStrategyBacktest(csId, 30);
             const metrics = result.result?.metrics || {};
 
-            // Show summary toast
             const trades = metrics.total_trades || 0;
             const returnPct = parseFloat(metrics.total_return_pct || 0).toFixed(2);
             const winRate = (metrics.win_rate * 100 || 0).toFixed(1);
@@ -903,12 +1004,12 @@ class TradingApp {
                 `Backtest complete: ${trades} trades, ${returnPct}% return, ${winRate}% win rate`,
                 trades > 0 ? 'success' : 'info'
             );
-
-            console.log('Backtest result:', result);
         } catch (error) {
             this.showToast(error.message || 'Backtest failed', 'error');
         }
     }
+
+    // ==================== Display Updates ====================
 
     updateRateDisplay(rate) {
         const priceEl = document.getElementById('chart-price');
@@ -917,12 +1018,10 @@ class TradingApp {
         const askEl = document.getElementById('chart-ask');
         const spreadEl = document.getElementById('chart-spread');
 
-        // Update main price (mid)
         if (priceEl && rate.mid) {
             priceEl.textContent = rate.mid;
         }
 
-        // Update bid/ask if elements exist
         if (bidEl && rate.bid) {
             bidEl.textContent = rate.bid;
         }
@@ -933,18 +1032,14 @@ class TradingApp {
             spreadEl.textContent = rate.spread;
         }
 
-        // Show market status, freshness indicator, or spread info
         if (changeEl) {
             if (rate.tradeable === false) {
-                // Market is closed
                 changeEl.textContent = 'Market Closed';
                 changeEl.className = 'chart-change muted';
             } else if (rate.age_seconds !== undefined && rate.age_seconds > 30) {
-                // Market open but data is stale
                 changeEl.textContent = `(${rate.age_seconds.toFixed(0)}s stale)`;
                 changeEl.className = 'chart-change negative';
             } else if (rate.spread) {
-                // Show spread when data is fresh
                 const spreadPips = (parseFloat(rate.spread) * 10000).toFixed(1);
                 changeEl.innerHTML = `<span class="spread-icon">↔</span> ${spreadPips}`;
                 changeEl.className = 'chart-change';
@@ -1005,7 +1100,6 @@ class TradingApp {
             </div>
         `).join('');
 
-        // Update positions count
         const countEl = document.getElementById('positions-count');
         if (countEl) {
             countEl.textContent = `${this.positions.length} open`;
@@ -1066,53 +1160,15 @@ class TradingApp {
         return `${diffDays}d ago`;
     }
 
-    handleInstrumentChange(e) {
-        const tab = e.currentTarget;
-        const instrument = tab.dataset.instrument;
-
-        if (!instrument || instrument === this.currentInstrument) return;
-
-        // Update UI
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        // Update state and reload chart
-        this.currentInstrument = instrument;
-        this.saveSessionState();
-        this.loadChartData();
-
-        // Reload indicators for new instrument
-        this.reloadAllIndicators();
-    }
-
-    handleTimeframeChange(e) {
-        const btn = e.currentTarget;
-        const period = btn.dataset.period;
-
-        if (!period || period === this.currentPeriod) return;
-
-        // Update UI
-        document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        // Update state and reload chart
-        this.currentPeriod = period;
-        this.saveSessionState();
-        this.loadChartData();
-
-        // Reload indicators for new period
-        this.reloadAllIndicators();
-    }
+    // ==================== Order Handling ====================
 
     handleOrderTypeChange(e) {
         const btn = e.currentTarget;
         const side = btn.dataset.side;
 
-        // Update UI
         document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // Update submit button
         const submitBtn = document.getElementById('submit-order-btn');
         if (submitBtn) {
             submitBtn.textContent = `Place ${side} Order`;
@@ -1141,7 +1197,6 @@ class TradingApp {
         }
 
         try {
-            // First check risk
             const riskCheck = await api.checkTradeRisk(this.currentInstrument, this.orderSide, quantity);
 
             if (!riskCheck.approved) {
@@ -1149,7 +1204,6 @@ class TradingApp {
                 return;
             }
 
-            // Execute trade
             const result = await api.executeTrade(
                 this.currentInstrument,
                 this.orderSide,
@@ -1160,7 +1214,6 @@ class TradingApp {
 
             this.showToast(result.message || 'Order placed successfully', 'success');
 
-            // Refresh positions and account
             await Promise.all([
                 this.loadPositions(),
                 this.loadAccountData(),
@@ -1183,7 +1236,6 @@ class TradingApp {
             await api.closeTrade(positionId);
             this.showToast('Position closed successfully', 'success');
 
-            // Refresh positions and account
             await Promise.all([
                 this.loadPositions(),
                 this.loadAccountData(),
@@ -1192,6 +1244,8 @@ class TradingApp {
             this.showToast(error.message || 'Failed to close position', 'error');
         }
     }
+
+    // ==================== Utility ====================
 
     updateConnectionStatus(connected) {
         this.isConnected = connected;
@@ -1204,7 +1258,6 @@ class TradingApp {
     }
 
     startAutoRefresh() {
-        // Refresh positions and account every 10 seconds
         this.refreshInterval = setInterval(async () => {
             if (this.isConnected) {
                 await Promise.all([
@@ -1213,9 +1266,6 @@ class TradingApp {
                 ]);
             }
         }, 10000);
-
-        // Note: Real-time rates are now handled via WebSocket
-        // HTTP polling is only used as fallback (see startHttpPolling)
     }
 
     stopAutoRefresh() {
@@ -1246,7 +1296,6 @@ class TradingApp {
 
         container.appendChild(toast);
 
-        // Remove after 5 seconds
         setTimeout(() => {
             toast.style.animation = 'slideIn 0.3s ease reverse';
             setTimeout(() => toast.remove(), 300);

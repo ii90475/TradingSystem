@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=0.46.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.49.0">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -36,13 +36,12 @@
 
     <!-- Main Container -->
     <div class="main-container">
-        <!-- Instrument Tabs -->
-        <div class="instrument-tabs">
-            <div class="tab active" data-instrument="EUR_USD">EUR/USD</div>
-            <div class="tab" data-instrument="GBP_USD">GBP/USD</div>
-            <div class="tab" data-instrument="USD_JPY">USD/JPY</div>
-            <div class="tab" data-instrument="AUD_USD">AUD/USD</div>
-            <div class="tab" data-instrument="USD_CAD">USD/CAD</div>
+        <!-- Chart Tabs -->
+        <div class="chart-tabs" id="chart-tabs">
+            <div class="chart-tab-list" id="chart-tab-list">
+                <!-- Dynamically populated -->
+            </div>
+            <button class="chart-tab-new" id="new-chart-btn" title="New Chart">+</button>
         </div>
 
         <!-- Chart Area -->
@@ -60,14 +59,7 @@
                         </span>
                         <span id="chart-change" class="chart-change">--</span>
                     </div>
-                    <div class="timeframe-buttons">
-                        <button class="tf-btn" data-period="M1">1m</button>
-                        <button class="tf-btn active" data-period="M5">5m</button>
-                        <button class="tf-btn" data-period="M15">15m</button>
-                        <button class="tf-btn" data-period="H1">1H</button>
-                        <button class="tf-btn" data-period="H4">4H</button>
-                        <button class="tf-btn" data-period="D">1D</button>
-                    </div>
+                    <div class="chart-period-badge" id="chart-period-badge"></div>
                 </div>
                 <div id="chart"></div>
             </div>
@@ -231,9 +223,56 @@
         </div>
     </div>
 
+    <!-- New Chart Modal -->
+    <div id="new-chart-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="app.hideNewChartModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>New Chart</h3>
+                <button class="modal-close" onclick="app.hideNewChartModal()">×</button>
+            </div>
+            <form id="new-chart-form" onsubmit="app.handleNewChartSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Instrument</label>
+                    <select id="nc-instrument" class="form-input" required>
+                        <option value="EUR_USD">EUR/USD</option>
+                        <option value="GBP_USD">GBP/USD</option>
+                        <option value="USD_JPY">USD/JPY</option>
+                        <option value="AUD_USD">AUD/USD</option>
+                        <option value="USD_CAD">USD/CAD</option>
+                        <option value="EUR_GBP">EUR/GBP</option>
+                        <option value="EUR_JPY">EUR/JPY</option>
+                        <option value="GBP_JPY">GBP/JPY</option>
+                        <option value="NZD_USD">NZD/USD</option>
+                        <option value="USD_CHF">USD/CHF</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Period</label>
+                    <select id="nc-period" class="form-input" required>
+                        <option value="M1">1 Minute</option>
+                        <option value="M5">5 Minutes</option>
+                        <option value="M15">15 Minutes</option>
+                        <option value="H1">1 Hour</option>
+                        <option value="H4">4 Hours</option>
+                        <option value="D">Daily</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chart Name</label>
+                    <input type="text" id="nc-name" class="form-input" placeholder="e.g. Euro Scalper" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="app.hideNewChartModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="nc-submit-btn">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.46.0"></script>
-    <script src="/static/js/chart.js?v=0.46.0"></script>
-    <script src="/static/js/app.js?v=0.46.0"></script>
+    <script src="/static/js/api.js?v=0.49.0"></script>
+    <script src="/static/js/chart.js?v=0.49.0"></script>
+    <script src="/static/js/app.js?v=0.49.0"></script>
 </body>
 </html>

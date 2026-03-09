@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from tradingsystem.models.chart import Chart, ChartCreate
+from tradingsystem.models.chart import Chart, ChartCreate, ChartDetail
 from tradingsystem.services import chart_service, series_service
 
 router = APIRouter(prefix="/charts", tags=["charts"])
@@ -17,9 +17,9 @@ class ChartUpdate(BaseModel):
     name: str
 
 
-@router.get("", response_model=list[Chart])
-async def list_charts() -> list[Chart]:
-    """List all charts."""
+@router.get("", response_model=list[ChartDetail])
+async def list_charts() -> list[ChartDetail]:
+    """List all charts with series info."""
     return await chart_service.list_charts()
 
 

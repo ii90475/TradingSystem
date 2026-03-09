@@ -221,6 +221,19 @@ class TradingAPI {
         return this.request('/charts');
     }
 
+    async createChart(data) {
+        return this.request('/charts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteChart(chartId) {
+        return this.request(`/charts/${chartId}`, {
+            method: 'DELETE',
+        });
+    }
+
     // ==================== Chart Strategies ====================
 
     async getChartStrategies(filters = {}) {

@@ -16,7 +16,7 @@ from tradingsystem.api.charts import (
     update_chart,
     ChartUpdate,
 )
-from tradingsystem.models.chart import Chart, ChartCreate
+from tradingsystem.models.chart import Chart, ChartCreate, ChartDetail
 from tradingsystem.models.series import Series
 
 
@@ -46,15 +46,24 @@ class TestListCharts:
     """Tests for list_charts endpoint."""
 
     @pytest.mark.asyncio
-    async def test_returns_charts(self, sample_chart):
-        """Should return all charts."""
+    async def test_returns_charts(self, sample_series, sample_chart):
+        """Should return all charts with series info."""
+        chart_detail = ChartDetail(
+            id=sample_chart.id,
+            name=sample_chart.name,
+            series_id=sample_chart.series_id,
+            instrument=sample_series.instrument,
+            period=sample_series.period,
+            created_at=sample_chart.created_at,
+        )
         with patch("tradingsystem.api.charts.chart_service") as mock_service:
-            mock_service.list_charts = AsyncMock(return_value=[sample_chart])
+            mock_service.list_charts = AsyncMock(return_value=[chart_detail])
 
             result = await list_charts()
 
             assert len(result) == 1
             assert result[0].name == "Euro Scalper"
+            assert result[0].instrument == "EUR_USD"
 
 
 class TestCreateChart:
