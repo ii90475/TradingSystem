@@ -273,3 +273,25 @@
 **Decisions made:** None new
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-09 (evening)
+
+**Accomplished:**
+- Completed Issue #12: Paper/Live trading toggle with dual OANDA API keys (v0.52.0)
+  - Backend: Added paper OANDA credentials (oanda_paper_api_key, oanda_paper_account_id, oanda_paper_api_url) to config, defaulting to api-fxpractice.oanda.com
+  - Refactored OandaTradingClient from static init-time credentials to runtime mode-aware properties (base_url, account_id, headers select Paper or Live based on current mode)
+  - Added GET/POST /live/mode endpoints for runtime mode switching; LIVE requires confirm_live=true AND LIVE_TRADING_ENABLED=true (double safety gate)
+  - Updated trade execution guards to check client mode, allowing Paper trades without LIVE_TRADING_ENABLED
+  - Orders record actual trading mode from client state
+  - Frontend: green PAPER badge / red pulsing LIVE badge in header, confirm() dialog for LIVE switch
+  - 6 new tests, updated all existing live trading tests for mode-aware client, 1050 total passing
+- Docker rebuilt and verified healthy
+
+**Remaining:**
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:** None new
+
+**Blockers:** None

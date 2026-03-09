@@ -24,6 +24,8 @@ from tradingsystem.core.websocket_manager import rate_manager
 from tradingsystem.services.health import health_state
 from tradingsystem.services import strategy_service
 from tradingsystem.services.alert_service import alert_service
+from tradingsystem.services.bar_close_service import bar_close_service
+from tradingsystem.services.signal_processor import handle_bar_close
 from tradingsystem.services.log_monitor import setup_log_monitoring
 from tradingsystem.services.monitoring_service import monitoring_service
 from tradingsystem.services.twilio_handler import twilio_handler
@@ -104,10 +106,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await rate_manager.start_broadcasting()
         logger.info(f"WebSocket rate broadcaster started ({settings.ws_rate_poll_interval_ms}ms interval)")
 
+    # Start bar close detection service with signal processor callback
+    bar_close_service.on_bar_close(handle_bar_close)
+    await bar_close_service.start()
+    logger.info("Bar close detection service started")
+
     yield
 
     # Shutdown
     logger.info("Shutting down...")
+    await bar_close_service.stop()
     await rate_manager.stop_broadcasting()
     await monitoring_service.stop()
     await close_pool()
@@ -117,7 +125,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.52.0",
+    version="0.53.0",
     lifespan=lifespan,
 )
 
