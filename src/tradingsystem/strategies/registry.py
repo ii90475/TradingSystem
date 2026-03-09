@@ -189,13 +189,16 @@ class StrategyRegistry:
                 isinstance(attr, type)
                 and issubclass(attr, BaseStrategy)
                 and attr is not BaseStrategy
-                and not cls.is_registered(attr_name.lower())
             ):
+                # Skip if this class is already registered (e.g. via @register decorator)
+                if attr in cls._strategies.values():
+                    continue
                 # Use class name as strategy ID
                 strategy_id = attr_name.lower()
-                cls.register_class(strategy_id, attr)
-                count += 1
-                logger.debug(f"Auto-registered strategy: {strategy_id} from {file_path.name}")
+                if not cls.is_registered(strategy_id):
+                    cls.register_class(strategy_id, attr)
+                    count += 1
+                    logger.debug(f"Auto-registered strategy: {strategy_id} from {file_path.name}")
 
         return count
 

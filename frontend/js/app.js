@@ -783,8 +783,8 @@ class TradingApp {
 
         const seen = new Set();
         const uniqueStrategies = this.availableStrategies.filter(s => {
-            if (seen.has(s.id)) return false;
-            seen.add(s.id);
+            if (seen.has(s.name)) return false;
+            seen.add(s.name);
             return true;
         });
 
@@ -795,6 +795,25 @@ class TradingApp {
             option.title = strategy.description;
             select.appendChild(option);
         });
+
+        // Auto-fill defaults on selection change
+        select.onchange = () => {
+            const strategy = this.availableStrategies.find(s => s.id === select.value);
+            const descEl = document.getElementById('si-strategy-desc');
+            const paramsEl = document.getElementById('si-params');
+
+            if (strategy) {
+                if (descEl) {
+                    descEl.textContent = strategy.description;
+                    descEl.style.display = 'block';
+                }
+                if (paramsEl && !this.editingStrategyId) {
+                    paramsEl.value = JSON.stringify(strategy.default_params || {}, null, 2);
+                }
+            } else {
+                if (descEl) descEl.style.display = 'none';
+            }
+        };
     }
 
     renderChartStrategies() {
@@ -815,12 +834,11 @@ class TradingApp {
         container.innerHTML = this.chartStrategies.map(cs => `
             <div class="strategy-instance-item ${cs.enabled ? '' : 'disabled'}" data-id="${cs.id}">
                 <div class="si-header">
-                    <span class="si-name">${this.escapeHtml(cs.strategy_id)}</span>
+                    <span class="si-name">${this.escapeHtml(cs.name || cs.strategy_id)}</span>
                     <span class="si-status ${cs.enabled ? 'active' : 'inactive'}">${cs.enabled ? '●' : '○'}</span>
                 </div>
                 <div class="si-details">
                     <span class="si-strategy">${cs.strategy_id}</span>
-                    <span class="si-chart-id" title="${cs.chart_id}">Chart</span>
                 </div>
                 <div class="si-actions">
                     <button class="si-btn toggle" onclick="app.toggleChartStrategy('${cs.id}')" title="${cs.enabled ? 'Disable' : 'Enable'}">
@@ -860,6 +878,7 @@ class TradingApp {
             submitBtn.textContent = 'Save';
 
             document.getElementById('si-id').value = cs.id;
+            document.getElementById('si-name').value = cs.name || '';
             document.getElementById('si-strategy').value = cs.strategy_id;
             document.getElementById('si-strategy').disabled = true;
             document.getElementById('si-chart-id').value = cs.chart_id;
@@ -871,9 +890,12 @@ class TradingApp {
             submitBtn.textContent = 'Create';
             form.reset();
             document.getElementById('si-id').value = '';
+            document.getElementById('si-name').value = '';
             document.getElementById('si-strategy').disabled = false;
             document.getElementById('si-chart-id').disabled = false;
             document.getElementById('si-enabled').checked = false;
+            const descEl = document.getElementById('si-strategy-desc');
+            if (descEl) descEl.style.display = 'none';
         }
 
         modal.classList.remove('hidden');
@@ -916,6 +938,7 @@ class TradingApp {
         submitBtn.textContent = 'Saving...';
 
         try {
+            const name = document.getElementById('si-name').value.trim();
             const strategyId = document.getElementById('si-strategy').value;
             const chartId = document.getElementById('si-chart-id').value;
             const paramsStr = document.getElementById('si-params').value.trim();
@@ -933,6 +956,7 @@ class TradingApp {
 
             if (this.editingStrategyId) {
                 await api.updateChartStrategy(this.editingStrategyId, {
+                    name,
                     parameters,
                     enabled,
                 });
@@ -941,6 +965,7 @@ class TradingApp {
                 await api.createChartStrategy({
                     chart_id: chartId,
                     strategy_id: strategyId,
+                    name,
                     parameters,
                     enabled,
                 });

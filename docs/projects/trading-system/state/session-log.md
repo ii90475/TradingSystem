@@ -132,18 +132,28 @@
 **Accomplished:**
 - Diagnosed and fixed http://localhost:8002/ui outage
   - Root cause: Docker image not rebuilt after Issues #2-5 code changes; stale local RateService process hogging port 8000 prevented Docker from binding
-  - Killed hung local process, stopped conflicting launchctl service, user restarted Docker compose stack
+  - Killed hung local process, stopped conflicting launchctl service, restarted Docker compose stack
 - Logged FailPoint #7: "Did Not Rebuild Docker Image After Code Changes"
-  - Updated FailPoints.md in AgentTeam repo (ClaudeCodingProjectSetup)
-  - Deleted duplicate FailPoints.md that was incorrectly created at /Users/jamesconsole/Code/FailPoints.md
-- Updated agent definitions (patch v1.1.1) in both repos:
+- Logged FailPoint #8: "Stale Project Instructions Caused Repeated Failure"
+  - Orchestrator kept asking user to run Docker commands because CLAUDE.md still referenced launchctl
+- Updated agent definitions (patch v1.1.1) across all repos:
   - Implementer: added Deployment section (Docker rebuild, port conflicts, endpoint verification)
-  - Validator: added Deployment Verification checklist (image rebuild check, stale container detection, endpoint response)
-  - Updated in: agents/definitions/, .claude/agents/, and ClaudeCodingProjectSetup/agents/definitions/
+  - Validator: added Deployment Verification checklist
+  - Updated in: agents/definitions/, .claude/agents/, ClaudeCodingProjectSetup/agents/definitions/
+- Replaced stale CLAUDE.md "Development Server" section with "Deployment — Docker Only"
+  - Added Docker rebuild as step 6 of commit workflow
+  - Documented full container stack, rebuild command, health verification
+  - Explicit: do not ask user to rebuild Docker; do it yourself
+- Deleted duplicate FailPoints.md incorrectly created at /Users/jamesconsole/Code/FailPoints.md
+- Committed and pushed:
+  - TradingSystem v0.48.1: ChartDetail model, frontend chart tabs, deployment fixes
+  - TradingSystem v0.48.2: Docker-only deployment instructions in CLAUDE.md
+  - AgentTeam v3.3.1: Deployment verification in Implementer/Validator, FailPoints #5-7
+  - AgentTeam v3.3.2: FailPoint #8 (stale project instructions)
+- Docker image rebuilt and verified healthy after each commit
 
 **Remaining:**
-- Uncommitted changes on master: ChartDetail model, list_charts JOIN, frontend updates, start-with-deps.sh port clearing
-- Docker image needs rebuild to include uncommitted changes: `docker compose up -d --build tradingsystem`
+- UI issues still present: no live pricing, volume gaps, no active price updates (needs investigation)
 - Issue #11: Plain English strategy creation UI (unblocked)
 - Issues #6-7: Chart Management UI (unblocked)
 - Issues #8-10: Strategy Assignment UI (unblocked)
@@ -151,6 +161,7 @@
 - Issues #13-15: Execution Engine (Wave 4)
 
 **Decisions made:**
-- Everything runs in Docker — this is a long-standing requirement for portability. No local launchctl fallback.
+- Everything runs in Docker — long-standing requirement for portability. No local launchctl fallback.
+- Docker rebuild is orchestrator's responsibility, not the user's. Added to CLAUDE.md commit workflow.
 
 **Blockers:** None

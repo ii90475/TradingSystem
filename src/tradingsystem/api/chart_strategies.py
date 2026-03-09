@@ -22,6 +22,7 @@ class CreateChartStrategyRequest(BaseModel):
 
     chart_id: UUID = Field(..., description="Chart to attach strategy to")
     strategy_id: str = Field(..., description="Base strategy ID (e.g., 'ma_crossover')")
+    name: str = Field(default="", description="User-defined label for this assignment")
     parameters: dict[str, Any] = Field(default_factory=dict, description="Strategy parameters")
     enabled: bool = Field(default=False, description="Enable for signal generation")
 
@@ -29,6 +30,7 @@ class CreateChartStrategyRequest(BaseModel):
 class UpdateChartStrategyRequest(BaseModel):
     """Request body for updating a chart strategy."""
 
+    name: str | None = None
     parameters: dict[str, Any] | None = None
     enabled: bool | None = None
 
@@ -39,6 +41,7 @@ class ChartStrategyResponse(BaseModel):
     id: str
     chart_id: str
     strategy_id: str
+    name: str
     parameters: dict[str, Any]
     enabled: bool
     created_at: str
@@ -57,6 +60,7 @@ async def create_chart_strategy(request: CreateChartStrategyRequest) -> dict[str
         cs = await chart_strategy_service.create_chart_strategy(
             chart_id=request.chart_id,
             strategy_id=request.strategy_id,
+            name=request.name,
             parameters=request.parameters,
             enabled=request.enabled,
         )
@@ -100,6 +104,7 @@ async def update_chart_strategy(cs_id: UUID, request: UpdateChartStrategyRequest
     """Update a chart strategy's parameters or enabled state."""
     cs = await chart_strategy_service.update_chart_strategy(
         cs_id=cs_id,
+        name=request.name,
         parameters=request.parameters,
         enabled=request.enabled,
     )

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 async def create_chart_strategy(
     chart_id: UUID,
     strategy_id: str,
+    name: str = "",
     parameters: dict[str, Any] | None = None,
     enabled: bool = False,
 ) -> ChartStrategy:
@@ -36,6 +37,7 @@ async def create_chart_strategy(
     cs = ChartStrategy.create(
         chart_id=chart_id,
         strategy_id=strategy_id,
+        name=name,
         parameters=parameters,
         enabled=enabled,
     )
@@ -44,10 +46,10 @@ async def create_chart_strategy(
         await cur.execute(
             """
             INSERT INTO chart_strategies
-                (id, chart_id, strategy_id, parameters, enabled, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (id, chart_id, strategy_id, name, parameters, enabled, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (cs.id, cs.chart_id, cs.strategy_id, Jsonb(cs.parameters),
+            (cs.id, cs.chart_id, cs.strategy_id, cs.name, Jsonb(cs.parameters),
              cs.enabled, cs.created_at, cs.updated_at),
         )
         await cur.connection.commit()
@@ -61,7 +63,7 @@ async def get_chart_strategy(cs_id: UUID) -> ChartStrategy | None:
     async with get_cursor() as cur:
         await cur.execute(
             """
-            SELECT id, chart_id, strategy_id, parameters, enabled, created_at, updated_at
+            SELECT id, chart_id, strategy_id, name, parameters, enabled, created_at, updated_at
             FROM chart_strategies
             WHERE id = %s
             """,
@@ -95,7 +97,7 @@ async def list_chart_strategies(
     async with get_cursor() as cur:
         await cur.execute(
             f"""
-            SELECT id, chart_id, strategy_id, parameters, enabled, created_at, updated_at
+            SELECT id, chart_id, strategy_id, name, parameters, enabled, created_at, updated_at
             FROM chart_strategies
             WHERE {where_clause}
             ORDER BY created_at DESC
@@ -108,13 +110,17 @@ async def list_chart_strategies(
 
 async def update_chart_strategy(
     cs_id: UUID,
+    name: str | None = None,
     parameters: dict[str, Any] | None = None,
     enabled: bool | None = None,
 ) -> ChartStrategy | None:
-    """Update a chart strategy's parameters or enabled state."""
+    """Update a chart strategy's name, parameters, or enabled state."""
     updates = []
     params = []
 
+    if name is not None:
+        updates.append("name = %s")
+        params.append(name)
     if parameters is not None:
         updates.append("parameters = %s")
         params.append(Jsonb(parameters))
@@ -135,7 +141,7 @@ async def update_chart_strategy(
             UPDATE chart_strategies
             SET {", ".join(updates)}
             WHERE id = %s
-            RETURNING id, chart_id, strategy_id, parameters, enabled, created_at, updated_at
+            RETURNING id, chart_id, strategy_id, name, parameters, enabled, created_at, updated_at
             """,
             params,
         )

@@ -103,6 +103,51 @@ async def init_schema() -> None:
                 );
             """)
 
+            # Migrate old charts schema (instrument, period) → (name, series_id)
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'charts' AND column_name = 'instrument'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'charts' AND column_name = 'series_id'
+                    ) THEN
+                        -- Ensure series exist for all chart instrument+period combos
+                        INSERT INTO series (instrument, period)
+                        SELECT DISTINCT instrument, period FROM charts
+                        ON CONFLICT (instrument, period) DO NOTHING;
+
+                        -- Add new columns
+                        ALTER TABLE charts ADD COLUMN name TEXT;
+                        ALTER TABLE charts ADD COLUMN series_id UUID;
+
+                        -- Populate from existing data
+                        UPDATE charts c
+                        SET name = c.instrument || ' · ' || c.period,
+                            series_id = s.id
+                        FROM series s
+                        WHERE s.instrument = c.instrument AND s.period = c.period;
+
+                        -- Set NOT NULL after population
+                        ALTER TABLE charts ALTER COLUMN name SET NOT NULL;
+                        ALTER TABLE charts ALTER COLUMN series_id SET NOT NULL;
+
+                        -- Add FK constraint
+                        ALTER TABLE charts
+                            ADD CONSTRAINT fk_charts_series
+                            FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE;
+
+                        -- Drop old columns
+                        ALTER TABLE charts DROP COLUMN instrument;
+                        ALTER TABLE charts DROP COLUMN period;
+
+                        RAISE NOTICE 'Migrated charts table to new schema (name, series_id)';
+                    END IF;
+                END $$;
+            """)
+
             # Charts (named views on a Series)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS charts (
@@ -113,41 +158,31 @@ async def init_schema() -> None:
                 );
             """)
 
-            # Migrate: create default charts for series that have chart_indicators
-            # but no chart yet (transition from series_id → chart_id)
+            # Migrate chart_indicators: rename series_id → chart_id
+            # (the column already FKs to charts(id), just misnamed)
             await cur.execute("""
                 DO $$
                 BEGIN
                     IF EXISTS (
                         SELECT 1 FROM information_schema.columns
                         WHERE table_name = 'chart_indicators' AND column_name = 'series_id'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'chart_indicators' AND column_name = 'chart_id'
                     ) THEN
-                        -- Create a default chart for each series that has indicators
-                        INSERT INTO charts (id, name, series_id, created_at)
-                        SELECT DISTINCT gen_random_uuid(),
-                               s.instrument || ' · ' || s.period,
-                               s.id,
-                               NOW()
-                        FROM chart_indicators ci
-                        JOIN series s ON s.id = ci.series_id
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM charts c WHERE c.series_id = s.id
-                        );
+                        -- Drop old FK constraint
+                        ALTER TABLE chart_indicators
+                            DROP CONSTRAINT IF EXISTS chart_indicators_chart_id_fkey;
 
-                        -- Add chart_id column
-                        ALTER TABLE chart_indicators ADD COLUMN chart_id UUID;
+                        -- Rename column
+                        ALTER TABLE chart_indicators RENAME COLUMN series_id TO chart_id;
 
-                        -- Set chart_id from the default chart for each series
-                        UPDATE chart_indicators ci
-                        SET chart_id = c.id
-                        FROM charts c
-                        WHERE c.series_id = ci.series_id;
-
-                        -- Drop old series_id column and add FK
-                        ALTER TABLE chart_indicators DROP COLUMN series_id;
+                        -- Re-add FK constraint
                         ALTER TABLE chart_indicators
                             ADD CONSTRAINT fk_chart_indicators_chart
                             FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE;
+
+                        RAISE NOTICE 'Migrated chart_indicators: renamed series_id → chart_id';
                     END IF;
                 END $$;
             """)
@@ -197,11 +232,25 @@ async def init_schema() -> None:
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     chart_id UUID NOT NULL REFERENCES charts(id) ON DELETE CASCADE,
                     strategy_id VARCHAR(50) NOT NULL,
+                    name TEXT NOT NULL DEFAULT '',
                     parameters JSONB DEFAULT '{}',
                     enabled BOOLEAN DEFAULT false,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 );
+            """)
+            # Migration: add name column if missing
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'chart_strategies' AND column_name = 'name'
+                    ) THEN
+                        ALTER TABLE chart_strategies ADD COLUMN name TEXT NOT NULL DEFAULT '';
+                        UPDATE chart_strategies SET name = strategy_id WHERE name = '';
+                    END IF;
+                END $$;
             """)
             await cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chart_strategies_chart
