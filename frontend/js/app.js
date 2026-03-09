@@ -136,11 +136,10 @@ class TradingApp {
     }
 
     setupEventListeners() {
-        // New chart button
-        const newChartBtn = document.getElementById('new-chart-btn');
-        if (newChartBtn) {
-            newChartBtn.addEventListener('click', () => this.showNewChartModal());
-        }
+        // Period buttons
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.switchPeriod(btn.dataset.period));
+        });
 
         // Order type toggle
         document.querySelectorAll('.order-type-btn').forEach(btn => {
@@ -241,8 +240,10 @@ class TradingApp {
             this.loadAvailableIndicators();
             this.loadChartStrategies();
 
-            // Restore saved indicators on chart
+            // Restore saved indicators on chart and sidebar
             if (this.activeIndicators.length > 0) {
+                this.renderActiveIndicators();
+                this.updateIndicatorCount();
                 await this.reloadAllIndicators();
             }
 
@@ -286,26 +287,28 @@ class TradingApp {
             }
         }
 
-        this.renderChartTabs();
+        this.renderChartList();
     }
 
-    renderChartTabs() {
-        const container = document.getElementById('chart-tab-list');
+    renderChartList() {
+        const container = document.getElementById('chart-list');
         if (!container) return;
 
         if (this.charts.length === 0) {
-            container.innerHTML = '<div class="chart-tabs-empty">No charts — click + to create one</div>';
+            container.innerHTML = '<div class="empty-state">No charts</div>';
             return;
         }
 
         const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'H1', H4:'H4', D:'Daily'};
 
         container.innerHTML = this.charts.map(c => `
-            <div class="chart-tab ${c.id === this.activeChartId ? 'active' : ''}"
-                 data-chart-id="${c.id}"
+            <div class="chart-list-item ${c.id === this.activeChartId ? 'active' : ''}"
                  onclick="app.selectChart('${c.id}')">
-                <span class="chart-tab-name">${this.escapeHtml(c.name)}</span>
-                <span class="chart-tab-subtitle">${c.instrument.replace('_', '/')} · ${periodLabels[c.period] || c.period}</span>
+                <div class="chart-list-item-info">
+                    <span class="chart-list-item-name">${this.escapeHtml(c.name)}</span>
+                    <span class="chart-list-item-pair">${c.instrument.replace('_', '/')}</span>
+                </div>
+                <span class="chart-list-item-period">${periodLabels[c.period] || c.period}</span>
             </div>
         `).join('');
     }
@@ -320,7 +323,7 @@ class TradingApp {
         this.currentInstrument = chart.instrument;
         this.currentPeriod = chart.period;
 
-        this.renderChartTabs();
+        this.renderChartList();
         this.saveSessionState();
         await this.loadChartData();
         this.reloadAllIndicators();
@@ -328,6 +331,31 @@ class TradingApp {
 
     getActiveChart() {
         return this.charts.find(c => c.id === this.activeChartId) || null;
+    }
+
+    async switchPeriod(period) {
+        if (period === this.currentPeriod) return;
+
+        const instrument = this.currentInstrument;
+
+        // Find existing chart for this instrument+period
+        let target = this.charts.find(c => c.instrument === instrument && c.period === period);
+
+        if (target) {
+            await this.selectChart(target.id);
+        } else {
+            // Create a new chart for this instrument+period
+            try {
+                const series = await api.getSeriesByInstrument(instrument, period);
+                const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'H1', H4:'H4', D:'Daily'};
+                const name = `${instrument.replace('_', '/')} ${periodLabels[period] || period}`;
+                const newChart = await api.createChart({ name, series_id: series.id });
+                await this.loadCharts();
+                await this.selectChart(newChart.id);
+            } catch (error) {
+                this.showToast(error.message || 'Failed to switch period', 'error');
+            }
+        }
     }
 
     showNewChartModal() {
@@ -536,12 +564,10 @@ class TradingApp {
             titleEl.textContent = instrument.replace('_', '/');
         }
 
-        // Update period badge
-        const periodBadge = document.getElementById('chart-period-badge');
-        if (periodBadge) {
-            const periodLabels = {M1:'1m', M5:'5m', M15:'15m', H1:'1H', H4:'4H', D:'1D'};
-            periodBadge.textContent = periodLabels[period] || period;
-        }
+        // Update active period button
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.period === period);
+        });
 
         await this.chart.loadData(instrument, period);
         await this.loadCurrentRate();

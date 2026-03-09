@@ -9,7 +9,6 @@ class ChartManager {
         this.chart = null;
         this.candlestickSeries = null;
         this.volumeSeries = null;
-        this.smaSeries = null;
         this.priceLine = null;
         this.currentInstrument = null;
         this.currentPeriod = 'H1';
@@ -42,9 +41,16 @@ class ChartManager {
             },
             crosshair: {
                 mode: LightweightCharts.CrosshairMode.Normal,
+                horzLine: {
+                    labelBackgroundColor: '#2962FF',
+                },
+                vertLine: {
+                    labelBackgroundColor: '#2962FF',
+                },
             },
             rightPriceScale: {
                 borderColor: '#30363d',
+                ticksVisible: true,
                 scaleMargins: {
                     top: 0.1,
                     bottom: 0.2,
@@ -84,19 +90,6 @@ class ChartManager {
             scaleMargins: {
                 top: 0.8,
                 bottom: 0,
-            },
-        });
-
-        // Add SMA series with forex price format (5 decimal places)
-        this.smaSeries = this.chart.addLineSeries({
-            color: '#58a6ff',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            priceFormat: {
-                type: 'price',
-                precision: 5,
-                minMove: 0.00001,
             },
         });
 
@@ -306,10 +299,6 @@ class ChartManager {
         }));
         this.volumeSeries.setData(volumeData);
 
-        // Calculate and set SMA
-        const smaData = this.calculateSMA(candleData, 20);
-        this.smaSeries.setData(smaData);
-
         // Restore saved zoom state or fit content
         if (restoreZoom && this.restoreZoomState()) {
             // Zoom state restored successfully
@@ -329,18 +318,6 @@ class ChartManager {
 
         const date = new Date(timeStr);
         return Math.floor(date.getTime() / 1000);
-    }
-
-    calculateSMA(data, period) {
-        const sma = [];
-        for (let i = period - 1; i < data.length; i++) {
-            const sum = data.slice(i - period + 1, i + 1).reduce((acc, d) => acc + d.close, 0);
-            sma.push({
-                time: data[i].time,
-                value: sum / period,
-            });
-        }
-        return sma;
     }
 
     loadMockData() {
@@ -713,16 +690,6 @@ class ChartManager {
         // Apply to candlestick series (main price chart)
         if (this.candlestickSeries) {
             this.candlestickSeries.priceScale().applyOptions({
-                scaleMargins: {
-                    top: 0.05,
-                    bottom: priceChartBottomMargin,
-                },
-            });
-        }
-
-        // Apply to SMA series (overlay on price chart)
-        if (this.smaSeries) {
-            this.smaSeries.priceScale().applyOptions({
                 scaleMargins: {
                     top: 0.05,
                     bottom: priceChartBottomMargin,

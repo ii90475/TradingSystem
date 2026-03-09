@@ -5,10 +5,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from tradingsystem.core.config import settings
 from tradingsystem.core.database import (
@@ -115,7 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title=settings.app_name,
     description="Automated trading system with technical analysis, backtesting, and strategy execution",
-    version="0.48.3",
+    version="0.48.4",
     lifespan=lifespan,
 )
 
@@ -157,6 +158,16 @@ app.include_router(live_trading_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(rates_router, prefix="/api")
 app.include_router(session_router, prefix="/api")
+
+# Static file cache control — prevent stale browser caches
+class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+app.add_middleware(NoCacheStaticMiddleware)
 
 # Mount static files for frontend
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"

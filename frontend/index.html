@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=0.49.1">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.49.3">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -36,14 +36,6 @@
 
     <!-- Main Container -->
     <div class="main-container">
-        <!-- Chart Tabs -->
-        <div class="chart-tabs" id="chart-tabs">
-            <div class="chart-tab-list" id="chart-tab-list">
-                <!-- Dynamically populated -->
-            </div>
-            <button class="chart-tab-new" id="new-chart-btn" title="New Chart">+</button>
-        </div>
-
         <!-- Chart Area -->
         <div class="chart-area">
             <div class="chart-container">
@@ -59,7 +51,14 @@
                         </span>
                         <span id="chart-change" class="chart-change">--</span>
                     </div>
-                    <div class="chart-period-badge" id="chart-period-badge"></div>
+                    <div class="chart-period-buttons" id="chart-period-buttons">
+                        <button class="period-btn" data-period="M1">1m</button>
+                        <button class="period-btn" data-period="M5">5m</button>
+                        <button class="period-btn" data-period="M15">15m</button>
+                        <button class="period-btn" data-period="H1">1H</button>
+                        <button class="period-btn" data-period="H4">4H</button>
+                        <button class="period-btn" data-period="D">1D</button>
+                    </div>
                 </div>
                 <div id="chart"></div>
             </div>
@@ -72,6 +71,21 @@
                 <div class="panel-header">
                     <span>Trading</span>
                     <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle sidebar">›</button>
+                </div>
+            </div>
+            <!-- Charts -->
+            <div class="panel sidebar-content collapsible">
+                <div class="panel-header" data-toggle="panel">
+                    <span>Charts</span>
+                    <div class="panel-header-right">
+                        <button class="btn-small" onclick="app.showNewChartModal()" title="New Chart">+</button>
+                        <span class="panel-toggle">▼</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div id="chart-list" class="chart-list">
+                        <div class="empty-state">No charts</div>
+                    </div>
                 </div>
             </div>
             <!-- Indicators -->
@@ -276,8 +290,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.49.1"></script>
-    <script src="/static/js/chart.js?v=0.49.1"></script>
-    <script src="/static/js/app.js?v=0.49.1"></script>
+    <script src="/static/js/api.js?v=0.49.3"></script>
+    <script src="/static/js/chart.js?v=0.49.3"></script>
+    <script src="/static/js/app.js?v=0.49.3"></script>
 </body>
 </html>
