@@ -9,28 +9,48 @@ Code and docs are a package — always commit them together. Every commit follow
 3. **Show current tag** and **ask the user what tag to use** (e.g., "Current tag: v0.45.0. What tag for this commit?").
 4. **Write a detailed commit message** — summary line with version and issue reference, then a body listing what changed by category (Database, Backend, Frontend, Tests, Docs).
 5. **Tag and push** — tag the commit, push to remote with tags.
+6. **Rebuild Docker image** — run `cd /Users/jamesconsole/Code/RateService && docker compose up -d --build tradingsystem` and verify health.
 
-Do not commit without asking for the tag. Do not split code and docs into separate commits.
+Do not commit without asking for the tag. Do not split code and docs into separate commits. Do not skip the Docker rebuild.
 
-## Development Server
+## Deployment — Docker Only
 
-When making changes to frontend files (HTML, CSS, JS) that require testing:
-- Claude should restart the server automatically
-- User will hard refresh the browser (Cmd+click refresh or Option+Cmd+R in Safari)
+Everything runs in Docker via docker-compose in the RateService repo. No local processes, no launchctl.
 
-### Server Commands
+### Docker Compose Location
 
-```bash
-# Restart server via launchctl (recommended)
-launchctl unload ~/Library/LaunchAgents/com.tradingsystem.app.plist
-launchctl load ~/Library/LaunchAgents/com.tradingsystem.app.plist
-
-# Or manually with pyenv
-source ~/.pyenv/versions/tradingsystem/bin/activate
-uvicorn tradingsystem.main:app --port 8002
+```
+/Users/jamesconsole/Code/RateService/docker-compose.yml
 ```
 
-Server runs on **port 8002** (not 8000). Dashboard at http://localhost:8002/ui
+### After Any Code Change
+
+Rebuild and restart the tradingsystem container:
+```bash
+cd /Users/jamesconsole/Code/RateService && docker compose up -d --build tradingsystem
+```
+
+This is **mandatory** after every code change — committed or not. Code is not deployed until the Docker image is rebuilt. Do not ask the user to do this; do it yourself.
+
+### Verify After Rebuild
+
+```bash
+curl -s http://localhost:8002/health
+```
+
+Confirm `status: healthy`, `database.healthy: true`, `rateservice.healthy: true` before declaring work complete.
+
+### Full Stack
+
+| Container | Port | Image |
+|-----------|------|-------|
+| rateservice-db | 5432 | timescale/timescaledb:latest-pg16 |
+| rateservice-app | 8000 | rateservice-rateservice |
+| tradingsystem-app | 8002 | rateservice-tradingsystem |
+| rateservice-prometheus | 9090 | prom/prometheus |
+| rateservice-grafana | 3000 | grafana/grafana |
+
+Dashboard at http://localhost:8002/ui
 
 ## Project Structure
 
