@@ -130,6 +130,26 @@ async def toggle_chart_strategy(cs_id: UUID) -> dict[str, Any]:
     return cs.to_dict()
 
 
+@router.get("/check-indicator-deps")
+async def check_indicator_dependencies(
+    chart_id: UUID,
+    indicator_type: str,
+) -> dict[str, Any]:
+    """Check if any strategies on a chart require a given indicator type."""
+    strategies = await chart_strategy_service.get_strategies_requiring_indicator(
+        chart_id, indicator_type,
+    )
+    return {
+        "indicator_type": indicator_type,
+        "chart_id": str(chart_id),
+        "dependent_strategies": [
+            {"id": str(cs.id), "name": cs.name or cs.strategy_id, "strategy_id": cs.strategy_id}
+            for cs in strategies
+        ],
+        "has_dependencies": len(strategies) > 0,
+    }
+
+
 @router.post("/{cs_id}/backtest")
 async def run_chart_strategy_backtest(
     cs_id: UUID,

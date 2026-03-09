@@ -755,6 +755,23 @@ class TradingApp {
         const index = this.activeIndicators.findIndex(i => i.id === indicatorId);
         if (index === -1) return;
 
+        const indicator = this.activeIndicators[index];
+
+        // Check if any strategy depends on this indicator
+        if (this.activeChartId) {
+            try {
+                const deps = await api.checkIndicatorDeps(this.activeChartId, indicator.name);
+                if (deps.has_dependencies) {
+                    const names = deps.dependent_strategies.map(s => s.name).join(', ');
+                    if (!confirm(`"${indicator.name.toUpperCase()}" is required by: ${names}.\n\nRemove anyway?`)) {
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not check indicator dependencies:', error);
+            }
+        }
+
         if (this.chart) {
             this.chart.removeIndicator(indicatorId);
         }
@@ -1049,6 +1066,12 @@ class TradingApp {
                     enabled,
                 });
                 this.showToast('Chart strategy created', 'success');
+
+                // Reload indicators — strategy may have auto-added required ones
+                if (chartId === this.activeChartId) {
+                    await this.loadChartData();
+                    this.reloadAllIndicators();
+                }
             }
 
             this.hideChartStrategyModal();

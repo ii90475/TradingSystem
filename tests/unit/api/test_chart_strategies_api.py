@@ -8,6 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 from tradingsystem.api.chart_strategies import (
+    check_indicator_dependencies,
     create_chart_strategy,
     delete_chart_strategy,
     get_chart_strategy,
@@ -39,6 +40,7 @@ def sample_cs(sample_chart):
         id=uuid4(),
         chart_id=sample_chart.id,
         strategy_id="ma_crossover",
+        name="MA Crossover Test",
         parameters={"fast_period": 10},
         enabled=False,
         created_at=datetime.now(timezone.utc),
@@ -146,6 +148,7 @@ class TestUpdateChartStrategy:
             id=sample_cs.id,
             chart_id=sample_cs.chart_id,
             strategy_id=sample_cs.strategy_id,
+            name=sample_cs.name,
             parameters={"fast_period": 5},
             enabled=True,
             created_at=sample_cs.created_at,
@@ -209,6 +212,7 @@ class TestToggleChartStrategy:
             id=sample_cs.id,
             chart_id=sample_cs.chart_id,
             strategy_id=sample_cs.strategy_id,
+            name=sample_cs.name,
             parameters=sample_cs.parameters,
             enabled=True,
             created_at=sample_cs.created_at,
@@ -231,3 +235,39 @@ class TestToggleChartStrategy:
                 await toggle_chart_strategy(uuid4())
 
             assert exc.value.status_code == 404
+
+
+class TestCheckIndicatorDependencies:
+    """Tests for check_indicator_dependencies endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_dependencies(self, sample_cs):
+        """Should return dependent strategies."""
+        with patch("tradingsystem.api.chart_strategies.chart_strategy_service") as mock_service:
+            mock_service.get_strategies_requiring_indicator = AsyncMock(
+                return_value=[sample_cs]
+            )
+
+            result = await check_indicator_dependencies(
+                chart_id=sample_cs.chart_id,
+                indicator_type="sma",
+            )
+
+            assert result["has_dependencies"] is True
+            assert len(result["dependent_strategies"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_returns_no_dependencies(self):
+        """Should return empty when no strategies need the indicator."""
+        with patch("tradingsystem.api.chart_strategies.chart_strategy_service") as mock_service:
+            mock_service.get_strategies_requiring_indicator = AsyncMock(
+                return_value=[]
+            )
+
+            result = await check_indicator_dependencies(
+                chart_id=uuid4(),
+                indicator_type="rsi",
+            )
+
+            assert result["has_dependencies"] is False
+            assert result["dependent_strategies"] == []

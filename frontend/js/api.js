@@ -282,6 +282,10 @@ class TradingAPI {
         });
     }
 
+    async checkIndicatorDeps(chartId, indicatorType) {
+        return this.request(`/chart-strategies/check-indicator-deps?chart_id=${chartId}&indicator_type=${encodeURIComponent(indicatorType)}`);
+    }
+
     async runChartStrategyBacktest(csId, days = 30) {
         return this.request(`/chart-strategies/${csId}/backtest?days=${days}`, {
             method: 'POST',

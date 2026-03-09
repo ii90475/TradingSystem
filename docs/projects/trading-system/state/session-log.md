@@ -221,3 +221,29 @@
 **Decisions made:** None new
 
 **Blockers:** None
+
+---
+
+## Session: 2026-03-09 (continued)
+
+**Accomplished:**
+- Completed Issues #8, #9, and #10: Strategy Assignment UI (v0.50.0)
+  - Issues #8 and #9 were already fully implemented from v0.46.0–v0.48.3 (strategy modal, toggle, edit, delete, backtest all working)
+  - Implemented Issue #10: Auto-add required indicators on strategy assignment
+    - Backend: `_auto_add_required_indicators()` in chart_strategy_service — checks strategy's `required_indicators`, compares against chart's existing indicators, auto-adds missing ones via indicator_service
+    - Backend: `get_strategies_requiring_indicator()` — finds all chart strategies on a chart that depend on a given indicator type
+    - API: `GET /chart-strategies/check-indicator-deps` — returns dependent strategies for a given indicator before removal
+    - Frontend: `removeIndicator()` now checks dependencies before removing; warns user with strategy names if indicator is required by any strategy
+    - Frontend: `handleChartStrategySubmit()` reloads indicators after creating a strategy so auto-added indicators appear on the chart
+    - Frontend: `api.checkIndicatorDeps()` method for the new endpoint
+  - Fixed pre-existing test failures in test_chart_strategies_api.py (missing `name` field on ChartStrategy constructors)
+  - 9 new tests (7 service, 2 API), 1044 total passing
+
+**Remaining:**
+- Issue #11: Plain English strategy creation UI (unblocked)
+- Issue #12: Paper/Live trading toggle
+- Issues #13-15: Execution Engine (Wave 4)
+
+**Decisions made:** None new
+
+**Blockers:** None

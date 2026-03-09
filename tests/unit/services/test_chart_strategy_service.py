@@ -8,6 +8,7 @@ import pytest
 
 from tradingsystem.models.chart_strategy import ChartStrategy
 from tradingsystem.services import chart_strategy_service
+from tradingsystem.strategies.base import BaseStrategy, IndicatorConfig
 
 
 @pytest.fixture
@@ -30,6 +31,7 @@ def sample_row():
         "id": uuid4(),
         "chart_id": uuid4(),
         "strategy_id": "ma_crossover",
+        "name": "MA Crossover Test",
         "parameters": {"fast_period": 10, "slow_period": 20},
         "enabled": False,
         "created_at": datetime.now(timezone.utc),
@@ -258,3 +260,163 @@ class TestToggleEnabled:
             result = await chart_strategy_service.toggle_enabled(uuid4())
 
             assert result is None
+
+
+class TestAutoAddRequiredIndicators:
+    """Tests for _auto_add_required_indicators."""
+
+    @pytest.mark.asyncio
+    async def test_adds_missing_indicators(self):
+        """Should auto-add indicators the strategy requires but chart lacks."""
+        chart_id = uuid4()
+
+        class FakeStrategy(BaseStrategy):
+            name = "Test"
+            instruments = ["EUR_USD"]
+            periods = ["H1"]
+            required_indicators = [
+                IndicatorConfig("sma", {"length": 20}),
+                IndicatorConfig("rsi", {"length": 14}),
+            ]
+            def generate_signals(self, context):
+                return []
+
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = FakeStrategy
+
+        with (
+            patch("tradingsystem.services.chart_strategy_service.StrategyRegistry", mock_registry),
+            patch("tradingsystem.services.chart_strategy_service.indicator_service") as mock_ind,
+        ):
+            mock_ind.get_chart_indicators = AsyncMock(return_value=[])
+            mock_ind.add_indicator_to_chart = AsyncMock()
+
+            added = await chart_strategy_service._auto_add_required_indicators(
+                chart_id, "test_strategy"
+            )
+
+            assert set(added) == {"sma", "rsi"}
+            assert mock_ind.add_indicator_to_chart.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_skips_existing_indicators(self):
+        """Should not add indicators already on the chart."""
+        chart_id = uuid4()
+
+        class FakeStrategy(BaseStrategy):
+            name = "Test"
+            instruments = ["EUR_USD"]
+            periods = ["H1"]
+            required_indicators = [
+                IndicatorConfig("sma", {"length": 20}),
+            ]
+            def generate_signals(self, context):
+                return []
+
+        existing_indicator = MagicMock()
+        existing_indicator.indicator_type = "sma"
+
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = FakeStrategy
+
+        with (
+            patch("tradingsystem.services.chart_strategy_service.StrategyRegistry", mock_registry),
+            patch("tradingsystem.services.chart_strategy_service.indicator_service") as mock_ind,
+        ):
+            mock_ind.get_chart_indicators = AsyncMock(return_value=[existing_indicator])
+            mock_ind.add_indicator_to_chart = AsyncMock()
+
+            added = await chart_strategy_service._auto_add_required_indicators(
+                chart_id, "test_strategy"
+            )
+
+            assert added == []
+            mock_ind.add_indicator_to_chart.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_no_required_indicators(self):
+        """Should return empty list when strategy has no required indicators."""
+        class FakeStrategy(BaseStrategy):
+            name = "Test"
+            instruments = ["EUR_USD"]
+            periods = ["H1"]
+            required_indicators = []
+            def generate_signals(self, context):
+                return []
+
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = FakeStrategy
+
+        with patch("tradingsystem.services.chart_strategy_service.StrategyRegistry", mock_registry):
+            added = await chart_strategy_service._auto_add_required_indicators(
+                uuid4(), "test_strategy"
+            )
+
+            assert added == []
+
+
+class TestGetStrategiesRequiringIndicator:
+    """Tests for get_strategies_requiring_indicator."""
+
+    @pytest.mark.asyncio
+    async def test_finds_dependent_strategies(self, mock_cursor, sample_row):
+        """Should return strategies that require a given indicator."""
+        class FakeStrategy(BaseStrategy):
+            name = "Test"
+            instruments = ["EUR_USD"]
+            periods = ["H1"]
+            required_indicators = [
+                IndicatorConfig("sma", {"length": 20}),
+            ]
+            def generate_signals(self, context):
+                return []
+
+        mock_cursor.fetchall.return_value = [sample_row]
+
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = FakeStrategy
+
+        with (
+            patch("tradingsystem.services.chart_strategy_service.get_cursor") as mock_get,
+            patch("tradingsystem.services.chart_strategy_service.StrategyRegistry", mock_registry),
+        ):
+            mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
+            mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await chart_strategy_service.get_strategies_requiring_indicator(
+                sample_row["chart_id"], "sma"
+            )
+
+            assert len(result) == 1
+            assert result[0].strategy_id == "ma_crossover"
+
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_unused_indicator(self, mock_cursor, sample_row):
+        """Should return empty list when no strategy needs the indicator."""
+        class FakeStrategy(BaseStrategy):
+            name = "Test"
+            instruments = ["EUR_USD"]
+            periods = ["H1"]
+            required_indicators = [
+                IndicatorConfig("sma", {"length": 20}),
+            ]
+            def generate_signals(self, context):
+                return []
+
+        mock_cursor.fetchall.return_value = [sample_row]
+
+        mock_registry = MagicMock()
+        mock_registry.get.return_value = FakeStrategy
+
+        with (
+            patch("tradingsystem.services.chart_strategy_service.get_cursor") as mock_get,
+            patch("tradingsystem.services.chart_strategy_service.StrategyRegistry", mock_registry),
+        ):
+            mock_get.return_value.__aenter__ = AsyncMock(return_value=mock_cursor)
+            mock_get.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            result = await chart_strategy_service.get_strategies_requiring_indicator(
+                sample_row["chart_id"], "rsi"
+            )
+
+            assert result == []

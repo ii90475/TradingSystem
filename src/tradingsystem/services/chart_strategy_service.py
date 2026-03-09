@@ -1,7 +1,8 @@
 """Service for managing chart strategy assignments.
 
 Provides CRUD operations for ChartStrategy entities — strategies bound
-to charts with parameters and toggle state.
+to charts with parameters and toggle state. Auto-adds required indicators
+when a strategy is assigned to a chart.
 """
 
 import logging
@@ -12,7 +13,9 @@ from uuid import UUID
 from psycopg.types.json import Jsonb
 
 from tradingsystem.core.database import get_cursor
+from tradingsystem.models.chart import ChartIndicatorCreate
 from tradingsystem.models.chart_strategy import ChartStrategy
+from tradingsystem.services import indicator_service
 from tradingsystem.strategies.registry import StrategyRegistry
 
 logger = logging.getLogger(__name__)
@@ -55,6 +58,10 @@ async def create_chart_strategy(
         await cur.connection.commit()
 
     logger.info(f"Created chart strategy: {strategy_id} on chart {chart_id}")
+
+    # Auto-add required indicators to the chart
+    await _auto_add_required_indicators(chart_id, strategy_id)
+
     return cs
 
 
@@ -171,3 +178,72 @@ async def toggle_enabled(cs_id: UUID) -> ChartStrategy | None:
     if not cs:
         return None
     return await update_chart_strategy(cs_id, enabled=not cs.enabled)
+
+
+async def get_strategies_requiring_indicator(
+    chart_id: UUID,
+    indicator_type: str,
+) -> list[ChartStrategy]:
+    """Find all chart strategies on a chart that require a given indicator type."""
+    strategies = await list_chart_strategies(chart_id=chart_id)
+    result = []
+    for cs in strategies:
+        strategy_cls = StrategyRegistry.get(cs.strategy_id)
+        if not strategy_cls or not callable(strategy_cls):
+            continue
+        try:
+            instance = strategy_cls()
+        except Exception:
+            continue
+        for ind in instance.required_indicators:
+            if ind.indicator_type == indicator_type:
+                result.append(cs)
+                break
+    return result
+
+
+async def _auto_add_required_indicators(chart_id: UUID, strategy_id: str) -> list[str]:
+    """Auto-add required indicators for a strategy to its chart.
+
+    Checks which indicators the strategy needs, compares against what's
+    already on the chart, and adds any missing ones.
+
+    Returns list of indicator types that were added.
+    """
+    strategy_cls = StrategyRegistry.get(strategy_id)
+    if not strategy_cls or not callable(strategy_cls):
+        return []
+
+    try:
+        instance = strategy_cls()
+    except Exception:
+        return []
+    if not instance.required_indicators:
+        return []
+
+    existing = await indicator_service.get_chart_indicators(chart_id)
+    existing_types = {ind.indicator_type for ind in existing}
+
+    added = []
+    for req_ind in instance.required_indicators:
+        if req_ind.indicator_type not in existing_types:
+            try:
+                await indicator_service.add_indicator_to_chart(
+                    chart_id,
+                    ChartIndicatorCreate(
+                        indicator_type=req_ind.indicator_type,
+                        parameters=req_ind.params,
+                    ),
+                )
+                added.append(req_ind.indicator_type)
+                existing_types.add(req_ind.indicator_type)
+                logger.info(
+                    f"Auto-added indicator {req_ind.indicator_type} "
+                    f"to chart {chart_id} for strategy {strategy_id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to auto-add indicator {req_ind.indicator_type}: {e}"
+                )
+
+    return added
