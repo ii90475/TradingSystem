@@ -884,6 +884,12 @@ class TradingApp {
             return true;
         });
 
+        // "+ Create New" option opens the generator modal
+        const createOption = document.createElement('option');
+        createOption.value = '__create_new__';
+        createOption.textContent = '+ Create New...';
+        select.appendChild(createOption);
+
         uniqueStrategies.forEach(strategy => {
             const option = document.createElement('option');
             option.value = strategy.id;
@@ -894,6 +900,13 @@ class TradingApp {
 
         // Auto-fill defaults on selection change
         select.onchange = () => {
+            if (select.value === '__create_new__') {
+                select.value = '';
+                this.hideChartStrategyModal();
+                this.showStrategyGenModal();
+                return;
+            }
+
             const strategy = this.availableStrategies.find(s => s.id === select.value);
             const descEl = document.getElementById('si-strategy-desc');
             const paramsEl = document.getElementById('si-params');
@@ -1133,6 +1146,167 @@ class TradingApp {
             );
         } catch (error) {
             this.showToast(error.message || 'Backtest failed', 'error');
+        }
+    }
+
+    // ==================== Strategy Generator ====================
+
+    showStrategyGenModal() {
+        const modal = document.getElementById('strategy-gen-modal');
+        if (!modal) return;
+
+        // Reset to step 1
+        this._sgCode = '';
+        this._sgDescription = '';
+        document.getElementById('sg-description').value = '';
+        document.getElementById('sg-step-describe').classList.remove('hidden');
+        document.getElementById('sg-step-review').classList.add('hidden');
+        document.getElementById('sg-test-results').classList.add('hidden');
+
+        modal.classList.remove('hidden');
+    }
+
+    hideStrategyGenModal() {
+        const modal = document.getElementById('strategy-gen-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    strategyGenBack() {
+        document.getElementById('sg-step-describe').classList.remove('hidden');
+        document.getElementById('sg-step-review').classList.add('hidden');
+    }
+
+    async generateStrategy() {
+        const desc = document.getElementById('sg-description').value.trim();
+        if (!desc) {
+            this.showToast('Please describe your strategy', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('sg-generate-btn');
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+
+        try {
+            const result = await api.generateStrategy(desc);
+            this._sgCode = result.code;
+            this._sgDescription = desc;
+            this._showCodeReview(result);
+        } catch (error) {
+            this.showToast(error.message || 'Generation failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Generate';
+        }
+    }
+
+    async iterateStrategy() {
+        const refinement = document.getElementById('sg-iterate-input').value.trim();
+        if (!refinement) {
+            this.showToast('Enter refinement instructions', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('sg-iterate-btn');
+        btn.disabled = true;
+        btn.textContent = 'Iterating...';
+
+        // Send original description + current code + refinement as new prompt
+        const iterateDesc = `Here is an existing strategy I want to modify:\n\n\`\`\`python\n${this._sgCode}\n\`\`\`\n\nOriginal description: ${this._sgDescription}\n\nPlease modify it: ${refinement}`;
+
+        try {
+            const result = await api.generateStrategy(iterateDesc);
+            this._sgCode = result.code;
+            this._showCodeReview(result);
+            document.getElementById('sg-iterate-input').value = '';
+            this.showToast('Strategy updated', 'success');
+        } catch (error) {
+            this.showToast(error.message || 'Iteration failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Iterate';
+        }
+    }
+
+    _showCodeReview(result) {
+        document.getElementById('sg-step-describe').classList.add('hidden');
+        document.getElementById('sg-step-review').classList.remove('hidden');
+
+        // Show code
+        const codeEl = document.getElementById('sg-code-preview').querySelector('code');
+        codeEl.textContent = result.code;
+
+        // Validation status
+        const badge = document.getElementById('sg-validation-status');
+        const errorsEl = document.getElementById('sg-validation-errors');
+
+        if (result.validation_errors && result.validation_errors.length > 0) {
+            badge.textContent = 'Validation Issues';
+            badge.className = 'sg-validation-badge error';
+            errorsEl.innerHTML = result.validation_errors.map(e => `<div>${this.escapeHtml(e)}</div>`).join('');
+            errorsEl.classList.remove('hidden');
+            document.getElementById('sg-save-btn').disabled = true;
+        } else {
+            badge.textContent = 'Valid';
+            badge.className = 'sg-validation-badge valid';
+            errorsEl.classList.add('hidden');
+            document.getElementById('sg-save-btn').disabled = false;
+        }
+
+        // Reset test results
+        document.getElementById('sg-test-results').classList.add('hidden');
+    }
+
+    async testGeneratedStrategy() {
+        if (!this._sgCode) return;
+
+        const btn = document.getElementById('sg-test-btn');
+        btn.disabled = true;
+        btn.textContent = 'Testing...';
+
+        const instrument = document.getElementById('sg-test-instrument').value;
+        const period = document.getElementById('sg-test-period').value;
+
+        try {
+            const result = await api.testStrategy(this._sgCode, instrument, period);
+            const resultsEl = document.getElementById('sg-test-results');
+            const stats = result.stats;
+
+            resultsEl.innerHTML = `
+                <div class="sg-test-stat"><span>Candles analyzed</span><span>${stats.candles_analyzed}</span></div>
+                <div class="sg-test-stat"><span>Total signals</span><span>${stats.total_signals}</span></div>
+                <div class="sg-test-stat buy"><span>Buy signals</span><span>${stats.buy_signals}</span></div>
+                <div class="sg-test-stat sell"><span>Sell signals</span><span>${stats.sell_signals}</span></div>
+                ${stats.date_range ? `<div class="sg-test-stat"><span>Period</span><span>${stats.date_range.start?.slice(0,10) || '?'} — ${stats.date_range.end?.slice(0,10) || '?'}</span></div>` : ''}
+            `;
+            resultsEl.classList.remove('hidden');
+        } catch (error) {
+            this.showToast(error.message || 'Test failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Test';
+        }
+    }
+
+    async saveGeneratedStrategy() {
+        if (!this._sgCode) return;
+
+        const btn = document.getElementById('sg-save-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const result = await api.saveStrategy(this._sgCode);
+            this.showToast(`Strategy "${result.strategy_id}" saved and registered`, 'success');
+            this.hideStrategyGenModal();
+
+            // Refresh strategy list so the new strategy appears
+            await this.loadChartStrategies();
+        } catch (error) {
+            this.showToast(error.message || 'Save failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Strategy';
         }
     }
 

@@ -1242,3 +1242,132 @@ body {
     align-items: center;
     margin-bottom: 8px;
 }
+
+/* Strategy Generator Modal */
+.modal-wide {
+    max-width: 640px;
+}
+
+.strategy-gen-body {
+    padding: 16px;
+}
+
+.sg-step.hidden {
+    display: none;
+}
+
+.sg-code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.sg-code-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.sg-validation-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.sg-validation-badge.valid {
+    background: rgba(63, 185, 80, 0.2);
+    color: var(--accent-green);
+}
+
+.sg-validation-badge.error {
+    background: rgba(248, 81, 73, 0.2);
+    color: var(--accent-red);
+}
+
+.sg-code-preview {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 300px;
+    overflow: auto;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre;
+    margin: 0;
+}
+
+.sg-code-preview code {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.sg-validation-errors {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid var(--accent-red);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--accent-red);
+}
+
+.sg-validation-errors div {
+    padding: 2px 0;
+}
+
+.sg-iterate-row {
+    display: flex;
+    gap: 8px;
+}
+
+.sg-iterate-row .form-input {
+    flex: 1;
+}
+
+.sg-test-section {
+    margin-top: 12px;
+}
+
+.sg-test-row {
+    display: flex;
+    gap: 8px;
+}
+
+.sg-test-row .form-input {
+    flex: 1;
+}
+
+.sg-test-results {
+    margin-top: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.sg-test-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.sg-test-stat span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sg-test-stat.buy span:last-child {
+    color: var(--accent-green);
+}
+
+.sg-test-stat.sell span:last-child {
+    color: var(--accent-red);
+}

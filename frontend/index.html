@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingSystem Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=0.50.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=0.51.0">
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -289,9 +289,76 @@
         </div>
     </div>
 
+    <!-- Strategy Generator Modal -->
+    <div id="strategy-gen-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="app.hideStrategyGenModal()"></div>
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h3>Create Strategy</h3>
+                <button class="modal-close" onclick="app.hideStrategyGenModal()">&times;</button>
+            </div>
+            <div id="strategy-gen-body" class="strategy-gen-body">
+                <!-- Step 1: Describe -->
+                <div id="sg-step-describe" class="sg-step">
+                    <div class="form-group">
+                        <label class="form-label">Describe your strategy in plain English</label>
+                        <textarea id="sg-description" class="form-input" rows="4" placeholder="e.g. Buy when RSI drops below 30 and the price is above the 200-period EMA. Sell when RSI goes above 70."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="app.hideStrategyGenModal()">Cancel</button>
+                        <button type="button" class="btn-primary" id="sg-generate-btn" onclick="app.generateStrategy()">Generate</button>
+                    </div>
+                </div>
+                <!-- Step 2: Review code -->
+                <div id="sg-step-review" class="sg-step hidden">
+                    <div class="sg-code-header">
+                        <span class="sg-code-label">Generated Code</span>
+                        <span id="sg-validation-status" class="sg-validation-badge"></span>
+                    </div>
+                    <pre id="sg-code-preview" class="sg-code-preview"><code></code></pre>
+                    <div id="sg-validation-errors" class="sg-validation-errors hidden"></div>
+                    <!-- Iterate -->
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label class="form-label">Refine (optional)</label>
+                        <div class="sg-iterate-row">
+                            <input type="text" id="sg-iterate-input" class="form-input" placeholder="e.g. also check volume > average">
+                            <button type="button" class="btn-secondary" id="sg-iterate-btn" onclick="app.iterateStrategy()">Iterate</button>
+                        </div>
+                    </div>
+                    <!-- Test -->
+                    <div class="sg-test-section">
+                        <div class="form-group">
+                            <label class="form-label">Test on historical data</label>
+                            <div class="sg-test-row">
+                                <select id="sg-test-instrument" class="form-input">
+                                    <option value="EUR_USD">EUR/USD</option>
+                                    <option value="GBP_USD">GBP/USD</option>
+                                    <option value="USD_JPY">USD/JPY</option>
+                                    <option value="AUD_USD">AUD/USD</option>
+                                </select>
+                                <select id="sg-test-period" class="form-input">
+                                    <option value="H1">1H</option>
+                                    <option value="M15">15m</option>
+                                    <option value="H4">4H</option>
+                                    <option value="D">Daily</option>
+                                </select>
+                                <button type="button" class="btn-secondary" id="sg-test-btn" onclick="app.testGeneratedStrategy()">Test</button>
+                            </div>
+                        </div>
+                        <div id="sg-test-results" class="sg-test-results hidden"></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="app.strategyGenBack()">Back</button>
+                        <button type="button" class="btn-primary" id="sg-save-btn" onclick="app.saveGeneratedStrategy()">Save Strategy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="/static/js/api.js?v=0.50.0"></script>
-    <script src="/static/js/chart.js?v=0.50.0"></script>
-    <script src="/static/js/app.js?v=0.50.0"></script>
+    <script src="/static/js/api.js?v=0.51.0"></script>
+    <script src="/static/js/chart.js?v=0.51.0"></script>
+    <script src="/static/js/app.js?v=0.51.0"></script>
 </body>
 </html>

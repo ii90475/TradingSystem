@@ -296,6 +296,29 @@ class TradingAPI {
         return this.request('/chart-strategies/strategies');
     }
 
+    // ==================== Strategy Generator ====================
+
+    async generateStrategy(description) {
+        return this.request('/strategies/generate', {
+            method: 'POST',
+            body: JSON.stringify({ description }),
+        });
+    }
+
+    async saveStrategy(code) {
+        return this.request('/strategies/save', {
+            method: 'POST',
+            body: JSON.stringify({ code }),
+        });
+    }
+
+    async testStrategy(code, instrument, period, limit = 200) {
+        return this.request('/strategies/test', {
+            method: 'POST',
+            body: JSON.stringify({ code, instrument, period, limit }),
+        });
+    }
+
     // ==================== Health ====================
 
     async getHealth() {
